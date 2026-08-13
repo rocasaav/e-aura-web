@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
@@ -47,10 +48,13 @@ function ProductImageCarousel({
 
   return (
     <div className="h-64 overflow-hidden rounded-xl mb-3 border border-white/80 bg-stone-100/20 relative shadow-inner group">
-      <img
+      <Image
         src={imageList[currentIndex]}
         alt={`${productName} - Vista ${currentIndex + 1}`}
-        className="w-full h-full object-cover transition-all duration-300"
+        fill
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+        className="object-cover transition-all duration-300"
+        priority={currentIndex === 0}
       />
 
       {/* Flechas de navegación */}
@@ -145,7 +149,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <div>
               <span className="text-[10px] tracking-widest font-[var(--font-cinzel)] text-[#7a5c29] uppercase font-semibold">
-                Catálogo Oficial
+                Nuestro catálogo
               </span>
               <h1 className="font-[var(--font-great-vibes)] text-4xl text-[#3d2b1f] leading-none">
                 E-Aura
