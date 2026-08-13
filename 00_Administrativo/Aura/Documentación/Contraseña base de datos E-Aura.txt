@@ -1,0 +1,28 @@
+Contraseña base de datos E-Aura
+
+R@berto1980#
+
+
+
+
+********************************
+
+SUPABASE
+NEXT PUBLIC PROJECT URL = https://mptuknmmghlhitxgyjly.supabase.co
+
+
+
+NEXT PUBLIC SUPABASE ANON KEY
+sb_publishable_1ZSQSD3X_B2bBSiEkDPQ8w_PvVXxdRg
+
+
+*******************************
+
+Don Dominio 
+
+Dominio de e-aura
+Usuario: RocasaavTech
+Contraseña: Roberto1980
+
+
+******************************

@@ -1,0 +1,4 @@
+
+-- Agrega la columna 'images' como un arreglo de texto
+ALTER TABLE public.products 
+ADD COLUMN IF NOT EXISTS images TEXT[] DEFAULT '{}';
