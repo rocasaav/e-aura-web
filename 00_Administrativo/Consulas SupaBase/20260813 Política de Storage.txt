@@ -1,3 +1,0 @@
-
-CREATE POLICY "Permitir insertar productos" ON public.products FOR INSERT WITH CHECK (true);
-CREATE POLICY "Permitir actualizar productos" ON public.products FOR UPDATE USING (true);

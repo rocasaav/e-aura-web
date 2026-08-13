@@ -1,3 +1,0 @@
-
--- Borra todos los productos registrados actualizando la secuencia de IDs
-TRUNCATE TABLE public.products RESTART IDENTITY CASCADE;

@@ -1,3 +1,0 @@
-
--- Desactiva temporalmente RLS o agrega permisos completos para la tabla
-ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
