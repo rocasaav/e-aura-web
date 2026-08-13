@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
-import { Great_Vibes, Cinzel, Montserrat } from 'next/font/google';
+import { Montserrat, Cinzel, Alex_Brush } from 'next/font/google';
 import './globals.css';
 
-const greatVibes = Great_Vibes({
-  weight: '400',
+const montserrat = Montserrat({
   subsets: ['latin'],
-  variable: '--font-great-vibes',
+  variable: '--font-montserrat',
 });
 
 const cinzel = Cinzel({
@@ -13,14 +12,17 @@ const cinzel = Cinzel({
   variable: '--font-cinzel',
 });
 
-const montserrat = Montserrat({
+// Tipografía exacta al logotipo de E-Aura
+const alexBrush = Alex_Brush({
+  weight: ['400'],
   subsets: ['latin'],
-  variable: '--font-montserrat',
+  variable: '--font-alex-brush',
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
-  title: 'E-Aura | Velas Artesanales Hechas a Mano',
-  description: 'Velas artesanales y recuerdos exclusivos para eventos especiales.',
+  title: 'E-Aura — Velas Artesanales & Recuerdos',
+  description: 'Velas artesanales y recuerdos hechos a mano',
 };
 
 export default function RootLayout({
@@ -30,7 +32,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${greatVibes.variable} ${cinzel.variable} ${montserrat.variable} antialiased`}>
+      <body
+        className={`${montserrat.variable} ${cinzel.variable} ${alexBrush.variable} antialiased`}
+      >
         {children}
       </body>
     </html>
