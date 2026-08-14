@@ -175,7 +175,7 @@ export default function Home() {
             </div>
           </div>
 
-          <nav className="flex items-center gap-1.5 overflow-x-auto pt-1.5 mt-1 border-t border-[#7a5c29]/15">
+          <nav className="flex items-center gap-1.5 overflow-x-auto pt-1.5 mt-1 border-t border-[#7a5c29]/15 pb-2">
             <button
               onClick={() => setSelectedCategory(null)}
               className={`text-xs px-3 py-0.5 rounded-full whitespace-nowrap font-[var(--font-cinzel)] transition-all ${
