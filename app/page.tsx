@@ -175,12 +175,12 @@ export default function Home() {
             </div>
           </div>
 
-          <nav className="flex items-center gap-1.5 overflow-x-auto pt-1.5 mt-1 border-t border-[#7a5c29]/15 pb-2">
+          <nav className="flex flex-wrap items-center justify-center gap-1.5 pt-1.5 mt-1 border-t border-[#7a5c29]/15 pb-2">
             <button
               onClick={() => setSelectedCategory(null)}
-              className={`text-xs px-3 py-0.5 rounded-full whitespace-nowrap font-[var(--font-cinzel)] transition-all ${
+              className={`text-xs px-3 py-0.5 rounded-full font-[var(--font-cinzel)] transition-all ${
                 selectedCategory === null
-                  ? 'bg-[#3d2b1f] text-amber-50 shadow-md font-bold'
+                  ? 'bg-[#c9b596] text-[#2d1f15] shadow-md font-bold border border-[#b39e7d]'
                   : 'bg-white/40 text-[#5c4a38] hover:bg-white/70'
               }`}
             >
@@ -190,9 +190,9 @@ export default function Home() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`text-xs px-3 py-0.5 rounded-full whitespace-nowrap font-[var(--font-cinzel)] transition-all ${
+                className={`text-xs px-3 py-0.5 rounded-full font-[var(--font-cinzel)] transition-all ${
                   selectedCategory === cat.id
-                    ? 'bg-[#3d2b1f] text-amber-50 shadow-md font-bold'
+                    ? 'bg-[#F1E7FD] text-[#2d1f15] shadow-md font-bold border border-[#b39e7d]'
                     : 'bg-white/40 text-[#5c4a38] hover:bg-white/70'
                 }`}
               >
