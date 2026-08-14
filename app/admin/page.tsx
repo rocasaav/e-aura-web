@@ -48,8 +48,22 @@ export default function AdminPage() {
   });
 
   useEffect(() => {
-    fetchAdminData();
+    checkAuthAndFetch();
   }, []);
+
+  async function checkAuthAndFetch() {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.href = '/admin/login';
+      return;
+    }
+    fetchAdminData();
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/admin/login';
+  };
 
   async function fetchAdminData() {
     setLoading(true);
@@ -269,6 +283,14 @@ export default function AdminPage() {
             >
               + Agregar Producto
             </button>
+            
+            <button
+              onClick={handleLogout}
+              className="text-xs px-4 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-all font-semibold"
+              >
+                Cerrar Sesión
+            </button>
+
           </div>
         </header>
 
