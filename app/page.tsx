@@ -1,5 +1,4 @@
 'use client';
-
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
@@ -11,7 +10,7 @@ interface Category {
 
 interface Product {
   id: number;
-  category_id: number;
+  category_ids: number[]; // 👈 Actualizado a arreglo de números
   name: string;
   description: string;
   price: number;
@@ -56,14 +55,14 @@ function ProductImageCarousel({
           priority={currentIndex === 0}
         />
       </div>
-
       {imageList.length > 1 && (
         <>
           <button
             onClick={prevImage}
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/60 hover:bg-[#3d2b1f]/80 text-white p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs z-10"
             aria-label="Imagen anterior"
-            >
+          >
+            ❮
           </button>
           <button
             onClick={nextImage}
@@ -72,7 +71,6 @@ function ProductImageCarousel({
           >
             ❯
           </button>
-
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 bg-[#3d2b1f]/40 backdrop-blur-sm px-2.5 py-1 rounded-full z-10">
             {imageList.map((_, idx) => (
               <button
@@ -89,32 +87,81 @@ function ProductImageCarousel({
     </div>
   );
 }
-
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-
   const whatsappNumber = '5573589465';
 
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
       try {
+        // 1. Cargar categorías
         const { data: catData, error: catError } = await supabase
           .from('categories')
-          .select('*');
+          .select('*')
+          .order('name', { ascending: true });
+
         if (catError) console.error('Error al cargar categorías:', catError.message);
         if (catData) setCategories(catData);
 
-        const { data: prodData, error: prodError } = await supabase
-          .from('products')
-          .select('*')
-          .eq('is_available', true);
+        // 2. Cargar productos con sus relaciones
+        const { data: productsData, error: prodError } = await supabase
+  .from('products')
+  .select(`
+    id,
+    name,
+    slug,
+    commentary,
+    price,
+    dimensions,
+    images,
+    is_available,
+    product_categories (
+      category_id
+    ),
+    product_wax_aromas (
+      layer_number,
+      wax_types:wax_type_id ( name ),
+      aromas:aroma_id ( name )
+    )
+  `)
+  .eq('is_available', true);
+  
         if (prodError) console.error('Error al cargar productos:', prodError.message);
-        if (prodData) setProducts(prodData);
+
+        if (productsData) {
+          const formattedProducts = productsData.map((prod: any) => {
+            const waxTypes = prod.product_wax_aromas
+              ?.map((item: any) => item.wax_types?.name)
+              .filter(Boolean);
+            const aromas = prod.product_wax_aromas
+              ?.map((item: any) => item.aromas?.name)
+              .filter(Boolean);
+
+            const categoryIds = prod.product_categories
+              ?.map((pc: any) => pc.category_id)
+              .filter(Boolean) || [];
+
+            return {
+              id: prod.id,
+              category_ids: categoryIds,
+              name: prod.name,
+              description: prod.commentary || '',
+              price: prod.price,
+              wax_type: waxTypes?.length ? waxTypes.join(', ') : 'Cera Artesanal',
+              aroma: aromas?.length ? aromas.join(', ') : 'Aroma Natural',
+              dimensions: prod.dimensions || 'N/A',
+              image_url: prod.images?.[0] || '/placeholder.png',
+              images: prod.images || [],
+            };
+          });
+
+          setProducts(formattedProducts);
+        }
       } catch (err) {
         console.error('Error inesperado:', err);
       } finally {
@@ -132,24 +179,27 @@ export default function Home() {
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
   };
 
+  // 👈 Filtro corregido con .includes() sobre category_ids
   const filteredProducts = products.filter((product) => {
-    const matchesCategory = selectedCategory ? product.category_id === selectedCategory : true;
+    const matchesCategory = selectedCategory
+      ? product.category_ids?.includes(selectedCategory)
+      : true;
+
     const matchesSearch =
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.aroma?.toLowerCase().includes(searchQuery.toLowerCase());
+
     return matchesCategory && matchesSearch;
   });
-
   return (
     <main
       className="min-h-screen text-[#4a3b2c] relative font-[var(--font-montserrat)] flex flex-col justify-between bg-cover bg-center bg-fixed"
       style={{ backgroundImage: "url('/bg-texture.png')" }}
     >
       <div className="absolute inset-0 bg-[#fdfbf7]/30 pointer-events-none" />
-
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-screen justify-between">
         
-        {/* ENCABEZADO COMPACTO Y CON TIPOGRAFÍA ALEX BRUSH */}
+        {/* ENCABEZADO */}
         <header className="border border-[#7a5c29]/20 backdrop-blur-md rounded-2xl px-4 py-2 bg-white/40 shadow-sm mb-3">
           <div className="flex flex-col md:flex-row justify-between items-center gap-1.5">
             <div className="text-center md:text-left">
@@ -163,7 +213,6 @@ export default function Home() {
                 E-Aura
               </h1>
             </div>
-
             <div className="w-full md:w-60">
               <input
                 type="text"
@@ -174,7 +223,6 @@ export default function Home() {
               />
             </div>
           </div>
-
           <nav className="flex flex-wrap items-center justify-center gap-1.5 pt-1.5 mt-1 border-t border-[#7a5c29]/15 pb-2">
             <button
               onClick={() => setSelectedCategory(null)}
@@ -232,22 +280,18 @@ export default function Home() {
                       images={product.images}
                       productName={product.name}
                     />
-
                     <h3 className="font-[var(--font-cinzel)] font-bold text-base text-[#2d1f15] text-center mb-1 leading-snug">
                       {product.name}
                     </h3>
-
                     <p className="text-xs text-[#5c4a38] text-center mb-3 leading-relaxed">
                       {product.description}
                     </p>
-
                     <div className="text-xs text-[#6b5235] space-y-1 mb-4 bg-white/60 p-3 rounded-xl border border-white/70">
                       <div><strong className="text-[#3d2b1f]">Cera:</strong> {product.wax_type}</div>
                       <div><strong className="text-[#3d2b1f]">Aroma:</strong> {product.aroma}</div>
                       <div><strong className="text-[#3d2b1f]">Medidas:</strong> {product.dimensions}</div>
                     </div>
                   </div>
-
                   <div>
                     <div className="text-center mb-3">
                       <span className="font-[var(--font-cinzel)] font-bold text-xl text-[#2d1f15]">
@@ -255,18 +299,16 @@ export default function Home() {
                         <span className="text-xs font-normal text-[#6b5235]">MXN</span>
                       </span>
                     </div>
-
-                    {/* BOTÓN CON TONO MÁS CLARO (#bda37e) */}
                     <button
-                       onClick={() => handleWhatsAppQuote(product.name)}
-                       style={{ backgroundImage: "url('/fondoWhatsApp.png')" }}
-                       className="w-full bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
-                     >
-                       <svg className="w-4 h-4 fill-current text-[#128C7E]" viewBox="0 0 24 24">
-                         <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 5.001l-1.416 5.17 5.291-1.387c1.464.798 3.118 1.218 4.779 1.219h.004c5.506 0 9.989-4.478 9.99-9.985 0-2.668-1.039-5.177-2.926-7.064c-1.886-1.887-4.394-2.925-7.064-2.925zm5.72 14.181c-.236.666-1.373 1.272-1.912 1.346-.492.068-1.127.098-1.821-.124-.424-.136-.971-.312-1.685-.623-2.977-1.295-4.921-4.303-5.07-4.502-.149-.199-1.21-1.609-1.21-3.07 0-1.46.764-2.18 1.037-2.478.273-.298.596-.372.795-.372.199 0 .398.003.57.011.183.008.428-.069.67.511.248.596.845 2.063.919 2.212.075.149.124.323.025.522-.099.199-.149.323-.298.497-.149.174-.313.389-.447.522-.149.149-.304.312-.131.61.174.298.774 1.278 1.66 2.068 1.14.1 2.046 1.341 2.344 1.54.298.199.472.174.646-.025.174-.199.745-.869.944-1.167.199-.298.398-.248.67-.149.273.099 1.738.82 2.036.969.298.149.497.223.571.348.074.124.074.72-.162 1.386z"/>
-                       </svg>
-                       <span>Cotizar por WhatsApp</span>
-                     </button>
+                      onClick={() => handleWhatsAppQuote(product.name)}
+                      style={{ backgroundImage: "url('/fondoWhatsApp.png')" }}
+                      className="w-full bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
+                    >
+                      <svg className="w-4 h-4 fill-current text-[#128C7E]" viewBox="0 0 24 24">
+                        <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 5.001l-1.416 5.17 5.291-1.387c1.464.798 3.118 1.218 4.779 1.219h.004c5.506 0 9.989-4.478 9.99-9.985 0-2.668-1.039-5.177-2.926-7.064c-1.886-1.887-4.394-2.925-7.064-2.925zm5.72 14.181c-.236.666-1.373 1.272-1.912 1.346-.492.068-1.127.098-1.821-.124-.424-.136-.971-.312-1.685-.623-2.977-1.295-4.921-4.303-5.07-4.502-.149-.199-1.21-1.609-1.21-3.07 0-1.46.764-2.18 1.037-2.478.273-.298.596-.372.795-.372.199 0 .398.003.57.011.183.008.428-.069.67.511.248.596.845 2.063.919 2.212.075.149.124.323.025.522-.099.199-.149.323-.298.497-.149.174-.313.389-.447.522-.149.149-.304.312-.131.61.174.298.774 1.278 1.66 2.068 1.14.1 2.046 1.341 2.344 1.54.298.199.472.174.646-.025.174-.199.745-.869.944-1.167.199-.298.398-.248.67-.149.273.099 1.738.82 2.036.969.298.149.497.223.571.348.074.124.074.72-.162 1.386z"/>
+                      </svg>
+                      <span>Cotizar por WhatsApp</span>
+                    </button>
                   </div>
                 </div>
               ))}

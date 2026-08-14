@@ -22,6 +22,7 @@ interface Product {
   dimensions?: string;
   images: string[];
   is_available: boolean;
+  category_ids?: number[];
 }
 
 export default function AdminPage() {
@@ -38,6 +39,7 @@ export default function AdminPage() {
   const [price, setPrice] = useState('');
   const [dimensions, setDimensions] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]); // 👈 CORRECCIÓN 1: Estado agregado
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -71,11 +73,24 @@ export default function AdminPage() {
       const { data: aromaData } = await supabase.from('aromas').select('*').order('name');
       if (aromaData) setAromas(aromaData);
 
-      const { data: prodData } = await supabase
+      // 👈 CORRECCIÓN 2: Consulta relacional a product_categories
+      const { data: prodData, error: prodError } = await supabase
         .from('products')
-        .select('*')
+        .select(`
+          *,
+          product_categories ( category_id )
+        `)
         .order('id', { ascending: false });
-      if (prodData) setProducts(prodData);
+
+      if (prodError) console.error('Error al obtener productos:', prodError.message);
+
+      if (prodData) {
+        const formattedProducts: Product[] = prodData.map((prod: any) => ({
+          ...prod,
+          category_ids: prod.product_categories?.map((pc: any) => pc.category_id) || []
+        }));
+        setProducts(formattedProducts);
+      }
     } catch (err) {
       console.error('Error al cargar datos:', err);
     } finally {
@@ -91,6 +106,7 @@ export default function AdminPage() {
       setPrice(product.price.toString());
       setDimensions(product.dimensions || '');
       setImages(product.images || []);
+      setSelectedCategoryIds(product.category_ids || []); // 👈 CORRECCIÓN 3: Carga las categorías existentes al editar
     } else {
       setEditingProduct(null);
       setName('');
@@ -98,6 +114,7 @@ export default function AdminPage() {
       setPrice('');
       setDimensions('');
       setImages([]);
+      setSelectedCategoryIds([]);
     }
     setIsModalOpen(true);
   };
@@ -113,11 +130,10 @@ export default function AdminPage() {
     for (const file of files) {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-      // Subida a la raíz del bucket 'products' o a una subcarpeta
       const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('products') // Apuntando al bucket correcto: products
+        .from('products')
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) {
@@ -165,24 +181,40 @@ export default function AdminPage() {
     };
 
     try {
-      let error = null;
+      let productId = editingProduct?.id;
 
       if (editingProduct) {
-        const res = await supabase.from('products').update(productPayload).eq('id', editingProduct.id);
-        error = res.error;
+        // Actualizar datos básicos del producto
+        const { error } = await supabase.from('products').update(productPayload).eq('id', editingProduct.id);
+        if (error) throw error;
       } else {
-        const res = await supabase.from('products').insert([productPayload]);
-        error = res.error;
+        // Insertar nuevo producto
+        const { data, error } = await supabase.from('products').insert([productPayload]).select('id').single();
+        if (error) throw error;
+        if (data) productId = data.id;
       }
 
-      if (error) {
-        alert(`Error de Supabase: ${error.message}`);
-      } else {
-        setIsModalOpen(false);
-        fetchAdminData();
+      // 👈 CORRECCIÓN 4: Guardar las categorías en la tabla intermedia product_categories
+      if (productId) {
+        // 1. Eliminar relaciones anteriores
+        await supabase.from('product_categories').delete().eq('product_id', productId);
+
+        // 2. Insertar las nuevas categorías seleccionadas
+        if (selectedCategoryIds.length > 0) {
+          const categoryRows = selectedCategoryIds.map((catId) => ({
+            product_id: productId,
+            category_id: catId,
+          }));
+          const { error: catError } = await supabase.from('product_categories').insert(categoryRows);
+          if (catError) console.error('Error al asociar categorías:', catError.message);
+        }
       }
-    } catch (err) {
+
+      setIsModalOpen(false);
+      fetchAdminData();
+    } catch (err: any) {
       console.error('Error al guardar producto:', err);
+      alert(`Error al guardar: ${err.message || err}`);
     } finally {
       setSaving(false);
     }
@@ -223,13 +255,13 @@ export default function AdminPage() {
             </a>
             <button
               onClick={() => openModal()}
-              className="text-xs px-4 py-2 rounded-xl bg-[#3d2b1f] text-white hover:bg-[#5a3e2b] transition-all font-semibold"
+              className="text-xs px-4 py-2 rounded-xl bg-[#3d2b1f] text-white hover:bg-[#5a3e2b] transition-all font-semibold cursor-pointer"
             >
               + Agregar Producto
             </button>
             <button
               onClick={handleLogout}
-              className="text-xs px-4 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-all font-semibold"
+              className="text-xs px-4 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-all font-semibold cursor-pointer"
             >
               Cerrar Sesión
             </button>
@@ -264,13 +296,13 @@ export default function AdminPage() {
                 <div className="flex justify-end gap-2 mt-4 pt-2 border-t border-[#f2eae1]">
                   <button
                     onClick={() => openModal(prod)}
-                    className="text-xs px-3 py-1 rounded-lg bg-[#fdfbf7] border border-[#c9b596] hover:bg-[#e8ded1]"
+                    className="text-xs px-3 py-1 rounded-lg bg-[#fdfbf7] border border-[#c9b596] hover:bg-[#e8ded1] cursor-pointer"
                   >
                     Editar
                   </button>
                   <button
                     onClick={() => handleDeleteProduct(prod.id)}
-                    className="text-xs px-3 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100"
+                    className="text-xs px-3 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
                   >
                     Eliminar
                   </button>
@@ -336,6 +368,38 @@ export default function AdminPage() {
                 />
               </div>
 
+              {/* SECCIÓN DE CATEGORÍAS EN EL FORMULARIO */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-[#3d2b1f] mb-2 font-[var(--font-cinzel)]">
+                  Categorías / Clasificaciones (Selecciona una o varias)
+                </label>
+                <div className="flex flex-wrap gap-2 p-3 bg-white/60 border border-[#c9b596]/60 rounded-xl">
+                  {categories.map((cat) => {
+                    const isSelected = selectedCategoryIds.includes(cat.id);
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedCategoryIds(selectedCategoryIds.filter((id) => id !== cat.id));
+                          } else {
+                            setSelectedCategoryIds([...selectedCategoryIds, cat.id]);
+                          }
+                        }}
+                        className={`text-xs px-3 py-1 rounded-full font-[var(--font-cinzel)] transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#c9b596] text-[#2d1f15] font-bold border border-[#b39e7d] shadow-sm'
+                            : 'bg-white/70 text-[#5c4a38] border border-gray-200 hover:bg-white'
+                        }`}
+                      >
+                        {isSelected ? '✓ ' : '+ '} {cat.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Botón para seleccionar múltiples imágenes */}
               <div>
                 <label className="block font-semibold mb-1 text-[#3d2b1f]">Imágenes del Producto</label>
@@ -354,7 +418,7 @@ export default function AdminPage() {
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
-                    className="px-4 py-2 bg-[#3d2b1f] text-white rounded-xl text-xs font-semibold hover:bg-[#5a3e2b] transition-all disabled:opacity-50"
+                    className="px-4 py-2 bg-[#3d2b1f] text-white rounded-xl text-xs font-semibold hover:bg-[#5a3e2b] transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {uploading ? 'Subiendo imágenes...' : '+ Agregar Imágenes desde tu Equipo'}
                   </button>
@@ -369,7 +433,7 @@ export default function AdminPage() {
                         <button
                           type="button"
                           onClick={() => handleRemoveImage(idx)}
-                          className="absolute top-0 right-0 bg-rose-600 text-white text-[10px] w-4 h-4 rounded-bl flex items-center justify-center opacity-80 hover:opacity-100"
+                          className="absolute top-0 right-0 bg-rose-600 text-white text-[10px] w-4 h-4 rounded-bl flex items-center justify-center opacity-80 hover:opacity-100 cursor-pointer"
                         >
                           ✕
                         </button>
@@ -383,14 +447,14 @@ export default function AdminPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-300 hover:bg-gray-50"
+                  className="px-4 py-2 rounded-xl border border-gray-300 hover:bg-gray-50 cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving || uploading}
-                  className="px-4 py-2 rounded-xl bg-[#3d2b1f] text-white hover:bg-[#5a3e2b] disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-[#3d2b1f] text-white hover:bg-[#5a3e2b] disabled:opacity-50 cursor-pointer font-bold"
                 >
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
