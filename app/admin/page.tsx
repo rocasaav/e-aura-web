@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface Category {
@@ -30,7 +30,7 @@ export default function AdminPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Estados del Formulario de Producto
+  // Estados del Formulario
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [name, setName] = useState('');
@@ -38,7 +38,11 @@ export default function AdminPage() {
   const [price, setPrice] = useState('');
   const [dimensions, setDimensions] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Referencia para el input de archivo oculto
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     checkAuthAndFetch();
@@ -98,28 +102,85 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
+  // Carga de múltiples archivos al bucket 'products'
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    setUploading(true);
+
+    const files = Array.from(e.target.files);
+    const newImages: string[] = [];
+
+    for (const file of files) {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      // Subida a la raíz del bucket 'products' o a una subcarpeta
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('products') // Apuntando al bucket correcto: products
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) {
+        console.error(`Error al subir ${file.name}:`, uploadError.message);
+        alert(`Error al subir ${file.name}: ${uploadError.message}`);
+      } else {
+        const { data } = supabase.storage
+          .from('products')
+          .getPublicUrl(filePath);
+
+        if (data?.publicUrl) {
+          newImages.push(data.publicUrl);
+        }
+      }
+    }
+
+    setImages((prev) => [...prev, ...newImages]);
+    setUploading(false);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImages(images.filter((_, idx) => idx !== indexToRemove));
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const generatedSlug = name
+      ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now()
+      : 'producto-' + Date.now();
+
     const productPayload = {
       name,
-      slug,
+      slug: editingProduct ? editingProduct.slug : generatedSlug,
       commentary,
       price: parseFloat(price) || 0,
       dimensions,
       images,
+      is_available: true,
     };
 
     try {
+      let error = null;
+
       if (editingProduct) {
-        await supabase.from('products').update(productPayload).eq('id', editingProduct.id);
+        const res = await supabase.from('products').update(productPayload).eq('id', editingProduct.id);
+        error = res.error;
       } else {
-        await supabase.from('products').insert([productPayload]);
+        const res = await supabase.from('products').insert([productPayload]);
+        error = res.error;
       }
-      setIsModalOpen(false);
-      fetchAdminData();
+
+      if (error) {
+        alert(`Error de Supabase: ${error.message}`);
+      } else {
+        setIsModalOpen(false);
+        fetchAdminData();
+      }
     } catch (err) {
       console.error('Error al guardar producto:', err);
     } finally {
@@ -187,6 +248,13 @@ export default function AdminPage() {
                 className="p-4 rounded-xl border border-[#e8ded1] bg-white hover:shadow-md transition-all flex flex-col justify-between"
               >
                 <div>
+                  {prod.images && prod.images.length > 0 && (
+                    <img
+                      src={prod.images[0]}
+                      alt={prod.name}
+                      className="w-full h-32 object-cover rounded-lg mb-3 border border-[#f2eae1]"
+                    />
+                  )}
                   <h3 className="font-bold text-sm text-[#3d2b1f]">{prod.name}</h3>
                   <p className="text-xs text-[#7a5c29] italic mt-1">{prod.commentary || 'Sin comentario'}</p>
                   <div className="text-xs font-semibold mt-2 text-[#3d2b1f]">
@@ -216,7 +284,7 @@ export default function AdminPage() {
       {/* Modal de Agregar / Editar */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-[#e8ded1] shadow-xl space-y-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-[#e8ded1] shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="text-lg font-bold font-[var(--font-cinzel)] text-[#3d2b1f]">
               {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
             </h3>
@@ -228,7 +296,7 @@ export default function AdminPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej: PatitoS"
+                  placeholder="Ej: TequileroS"
                   className="w-full px-4 py-2 rounded-xl border border-[#c9b596]"
                 />
               </div>
@@ -239,7 +307,7 @@ export default function AdminPage() {
                   type="text"
                   value={dimensions}
                   onChange={(e) => setDimensions(e.target.value)}
-                  placeholder="Ej: 6 cm x 6 cm"
+                  placeholder="Ej: 3 cm x 10.5 cm"
                   className="w-full px-4 py-2 rounded-xl border border-[#c9b596]"
                 />
               </div>
@@ -252,7 +320,7 @@ export default function AdminPage() {
                   required
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  placeholder="Ej: 15.00"
+                  placeholder="Ej: 40"
                   className="w-full px-4 py-2 rounded-xl border border-[#c9b596]"
                 />
               </div>
@@ -263,9 +331,52 @@ export default function AdminPage() {
                   rows={2}
                   value={commentary}
                   onChange={(e) => setCommentary(e.target.value)}
-                  placeholder="Ej: Un chapoteo de amor en cera"
+                  placeholder="Frase descriptiva..."
                   className="w-full px-4 py-2 rounded-xl border border-[#c9b596]"
                 />
+              </div>
+
+              {/* Botón para seleccionar múltiples imágenes */}
+              <div>
+                <label className="block font-semibold mb-1 text-[#3d2b1f]">Imágenes del Producto</label>
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+
+                <div className="flex gap-2 items-center">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="px-4 py-2 bg-[#3d2b1f] text-white rounded-xl text-xs font-semibold hover:bg-[#5a3e2b] transition-all disabled:opacity-50"
+                  >
+                    {uploading ? 'Subiendo imágenes...' : '+ Agregar Imágenes desde tu Equipo'}
+                  </button>
+                </div>
+
+                {/* Previsualización de imágenes agregadas */}
+                {images.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {images.map((imgUrl, idx) => (
+                      <div key={idx} className="relative group w-16 h-16 border border-[#c9b596] rounded-lg overflow-hidden">
+                        <img src={imgUrl} alt={`Vista previa ${idx}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(idx)}
+                          className="absolute top-0 right-0 bg-rose-600 text-white text-[10px] w-4 h-4 rounded-bl flex items-center justify-center opacity-80 hover:opacity-100"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
@@ -278,8 +389,8 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 rounded-xl bg-[#3d2b1f] text-white hover:bg-[#5a3e2b]"
+                  disabled={saving || uploading}
+                  className="px-4 py-2 rounded-xl bg-[#3d2b1f] text-white hover:bg-[#5a3e2b] disabled:opacity-50"
                 >
                   {saving ? 'Guardando...' : 'Guardar'}
                 </button>
