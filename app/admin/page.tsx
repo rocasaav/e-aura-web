@@ -1,9 +1,23 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useRouter } from 'next/navigation';
 
-const DEFAULT_AROMA_ID = 75;
+const DEFAULT_AROMA_ID = 75; // ID correspondiente a 'Varios' tabla aroma
+const DEFAULT_WAX_TYPE_ID = 3; // ID correspondiente a 'Parafina' tabla tipo de cera
+
+// Función auxiliar para normalizar y crear el slug de forma limpia
+const generateSlug = (text: string): string => {
+  return text
+    ? text
+        .toLowerCase()
+        .normalize('NFD') // Remueve acentos y diacríticos
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '') + '-' + Date.now()
+    : 'producto-' + Date.now();
+};
 
 interface Category {
   id: number;
@@ -28,11 +42,25 @@ interface Product {
   aroma_ids?: number[];
 }
 
+interface RawProductCategory {
+  category_id: number;
+}
+
+interface RawProductWaxAroma {
+  aroma_id: number;
+}
+
+interface RawProductData extends Omit<Product, 'category_ids' | 'aroma_ids'> {
+  product_categories?: RawProductCategory[];
+  product_wax_aromas?: RawProductWaxAroma[];
+}
+
 export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [aromas, setAromas] = useState<Aroma[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   // Estados del Formulario
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -50,25 +78,7 @@ export default function AdminPage() {
   // Referencia para el input de archivo oculto
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    checkAuthAndFetch();
-  }, []);
-
-  async function checkAuthAndFetch() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      window.location.href = '/admin/login';
-      return;
-    }
-    fetchAdminData();
-  }
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/admin/login';
-  };
-
-  async function fetchAdminData() {
+  const fetchAdminData = useCallback(async () => {
     setLoading(true);
     try {
       const { data: catData } = await supabase.from('categories').select('*').order('name');
@@ -77,7 +87,7 @@ export default function AdminPage() {
       // Traer aromas situando 'Varios' (75) al principio
       const { data: aromaData } = await supabase.from('aromas').select('*');
       if (aromaData) {
-        const sortedAromas = aromaData.sort((a, b) => {
+        const sortedAromas = [...aromaData].sort((a, b) => {
           if (a.id === DEFAULT_AROMA_ID) return -1;
           if (b.id === DEFAULT_AROMA_ID) return 1;
           return a.name.localeCompare(b.name);
@@ -98,10 +108,18 @@ export default function AdminPage() {
       if (prodError) console.error('Error al obtener productos:', prodError.message);
 
       if (prodData) {
-        const formattedProducts: Product[] = prodData.map((prod: any) => ({
-          ...prod,
-          category_ids: prod.product_categories?.map((pc: any) => pc.category_id) || [],
-          aroma_ids: prod.product_wax_aromas?.map((pwa: any) => pwa.aroma_id) || []
+        const rawProducts = prodData as unknown as RawProductData[];
+        const formattedProducts: Product[] = rawProducts.map((prod) => ({
+          id: prod.id,
+          name: prod.name,
+          slug: prod.slug,
+          commentary: prod.commentary,
+          price: prod.price,
+          dimensions: prod.dimensions,
+          images: prod.images || [],
+          is_available: prod.is_available,
+          category_ids: prod.product_categories?.map((pc) => pc.category_id) || [],
+          aroma_ids: prod.product_wax_aromas?.map((pwa) => pwa.aroma_id) || []
         }));
         setProducts(formattedProducts);
       }
@@ -110,7 +128,47 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkSessionAndFetch = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError || !session) {
+          if (isMounted) router.push('/admin/login');
+          return;
+        }
+
+        if (isMounted) {
+          await fetchAdminData();
+        }
+      } catch (error) {
+        console.error("Error al autenticar panel:", error);
+        if (isMounted) {
+          router.push('/admin/login');
+        }
+      }
+    };
+
+    checkSessionAndFetch();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router, fetchAdminData]);
+
+  const handleLogout = useCallback(async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error al cerrar sesión:", error);
+    } finally {
+      router.push('/admin/login');
+    }
+  }, [router]);
 
   const openModal = (product?: Product) => {
     if (product) {
@@ -139,7 +197,6 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
-  // Carga de múltiples archivos al bucket 'products'
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     setUploading(true);
@@ -179,23 +236,24 @@ export default function AdminPage() {
   };
 
   const handleRemoveImage = (indexToRemove: number) => {
-    setImages(images.filter((_, idx) => idx !== indexToRemove));
+    setImages((prev) => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
-    const generatedSlug = name
-      ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now()
-      : 'producto-' + Date.now();
+    const finalSlug = editingProduct?.slug
+      ? editingProduct.slug
+      : generateSlug(name);
 
+    const parsedPrice = parseFloat(price);
     const productPayload = {
-      name,
-      slug: editingProduct ? editingProduct.slug : generatedSlug,
-      commentary,
-      price: parseFloat(price) || 0,
-      dimensions,
+      name: name.trim(),
+      slug: finalSlug,
+      commentary: commentary.trim(),
+      price: isNaN(parsedPrice) ? 0 : parsedPrice,
+      dimensions: dimensions.trim(),
       images,
       is_available: true,
     };
@@ -204,43 +262,79 @@ export default function AdminPage() {
       let productId = editingProduct?.id;
 
       if (editingProduct) {
-        const { error } = await supabase.from('products').update(productPayload).eq('id', editingProduct.id);
+        const { error } = await supabase
+          .from('products')
+          .update(productPayload)
+          .eq('id', editingProduct.id);
+
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('products').insert([productPayload]).select('id').single();
+        const { data, error } = await supabase
+          .from('products')
+          .insert([productPayload])
+          .select('id')
+          .single();
+
         if (error) throw error;
         if (data) productId = data.id;
       }
 
-      if (productId) {
-        // 1. Guardar Categorías
-        await supabase.from('product_categories').delete().eq('product_id', productId);
-        if (selectedCategoryIds.length > 0) {
-          const categoryRows = selectedCategoryIds.map((catId) => ({
-            product_id: productId,
-            category_id: catId,
-          }));
-          const { error: catError } = await supabase.from('product_categories').insert(categoryRows);
-          if (catError) console.error('Error al asociar categorías:', catError.message);
-        }
-
-        // 2. Guardar Aromas en product_wax_aromas
-        await supabase.from('product_wax_aromas').delete().eq('product_id', productId);
-        const aromasToSave = selectedAromaIds.length > 0 ? selectedAromaIds : [DEFAULT_AROMA_ID];
-        const aromaRows = aromasToSave.map((aromaId, index) => ({
-          product_id: productId,
-          aroma_id: aromaId,
-          layer_number: index + 1,
-        }));
-        const { error: aromaError } = await supabase.from('product_wax_aromas').insert(aromaRows);
-        if (aromaError) console.error('Error al asociar aromas:', aromaError.message);
+      if (!productId) {
+        throw new Error('No se pudo obtener o determinar el ID del producto.');
       }
 
+      // Guardar Categorías
+      const { error: delCatErr } = await supabase
+        .from('product_categories')
+        .delete()
+        .eq('product_id', productId);
+
+      if (delCatErr) throw delCatErr;
+
+      if (selectedCategoryIds.length > 0) {
+        const categoryRows = selectedCategoryIds.map((catId) => ({
+          product_id: productId,
+          category_id: catId,
+        }));
+
+        const { error: catError } = await supabase
+          .from('product_categories')
+          .insert(categoryRows);
+
+        if (catError) throw catError;
+      }
+
+      // Guardar Aromas
+      const { error: delAromaErr } = await supabase
+        .from('product_wax_aromas')
+        .delete()
+        .eq('product_id', productId);
+
+      if (delAromaErr) throw delAromaErr;
+
+      const aromasToSave = selectedAromaIds.length > 0 
+        ? selectedAromaIds 
+        : [DEFAULT_AROMA_ID];
+
+      const aromaRows = aromasToSave.map((aromaId, index) => ({
+        product_id: productId,
+        aroma_id: aromaId,
+        wax_type_id: DEFAULT_WAX_TYPE_ID,
+        layer_number: index + 1,
+      }));
+
+      const { error: aromaError } = await supabase
+        .from('product_wax_aromas')
+        .insert(aromaRows);
+
+      if (aromaError) throw aromaError;
+
       setIsModalOpen(false);
-      fetchAdminData();
-    } catch (err: any) {
+      await fetchAdminData();
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
       console.error('Error al guardar producto:', err);
-      alert(`Error al guardar: ${err.message || err}`);
+      alert(`Error al guardar: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
@@ -248,7 +342,11 @@ export default function AdminPage() {
 
   const handleDeleteProduct = async (id: number) => {
     if (!confirm('¿Estás seguro de eliminar este producto?')) return;
-    await supabase.from('products').delete().eq('id', id);
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) {
+      alert(`Error al eliminar: ${error.message}`);
+      return;
+    }
     fetchAdminData();
   };
 
@@ -275,17 +373,20 @@ export default function AdminPage() {
             <a
               href="/"
               target="_blank"
+              rel="noopener noreferrer"
               className="text-xs px-4 py-2 rounded-xl border border-[#c9b596] text-[#3d2b1f] hover:bg-[#fdfbf7] transition-all font-semibold flex items-center"
             >
               Ver Tienda
             </a>
             <button
+              type="button"
               onClick={() => openModal()}
               className="text-xs px-4 py-2 rounded-xl bg-[#3d2b1f] text-white hover:bg-[#5a3e2b] transition-all font-semibold cursor-pointer"
             >
               + Agregar Producto
             </button>
             <button
+              type="button"
               onClick={handleLogout}
               className="text-xs px-4 py-2 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 transition-all font-semibold cursor-pointer"
             >
@@ -321,12 +422,14 @@ export default function AdminPage() {
                 </div>
                 <div className="flex justify-end gap-2 mt-4 pt-2 border-t border-[#f2eae1]">
                   <button
+                    type="button"
                     onClick={() => openModal(prod)}
                     className="text-xs px-3 py-1 rounded-lg bg-[#fdfbf7] border border-[#c9b596] hover:bg-[#e8ded1] cursor-pointer"
                   >
                     Editar
                   </button>
                   <button
+                    type="button"
                     onClick={() => handleDeleteProduct(prod.id)}
                     className="text-xs px-3 py-1 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 cursor-pointer"
                   >
