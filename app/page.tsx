@@ -1,5 +1,6 @@
 'use client';
-import { useEffect, useState } from 'react';
+
+import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 
@@ -10,7 +11,7 @@ interface Category {
 
 interface Product {
   id: number;
-  category_ids: number[]; // 👈 Actualizado a arreglo de números
+  category_ids: number[];
   name: string;
   description: string;
   price: number;
@@ -21,30 +22,58 @@ interface Product {
   images?: string[];
 }
 
+interface ProductImageCarouselProps {
+  mainImage: string;
+  images?: string[] | null;
+  productName: string;
+}
+
 function ProductImageCarousel({
   mainImage,
   images,
   productName,
-}: {
-  mainImage: string;
-  images?: string[] | null;
-  productName: string;
-}) {
+}: ProductImageCarouselProps) {
   const imageList = images && images.length > 0 ? images : [mainImage];
   const [currentIndex, setCurrentIndex] = useState(0);
+  const touchStartX = useRef<number | null>(null);
 
-  const prevImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const prevImage = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.stopPropagation();
     setCurrentIndex((prev) => (prev === 0 ? imageList.length - 1 : prev - 1));
   };
 
-  const nextImage = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const nextImage = (e?: React.MouseEvent | React.TouchEvent) => {
+    if (e) e.stopPropagation();
     setCurrentIndex((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
   };
 
+  // Manejadores para la interacción táctil (Swipe)
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (touchStartX.current === null) return;
+    
+    const touchEndX = e.changedTouches[0].clientX;
+    const swipeDistance = touchStartX.current - touchEndX;
+    const minSwipeDistance = 40; // Umbral mínimo de píxeles para reconocer un deslizamiento
+
+    if (swipeDistance > minSwipeDistance) {
+      nextImage(); // Deslizamiento hacia la izquierda -> Siguiente
+    } else if (swipeDistance < -minSwipeDistance) {
+      prevImage(); // Deslizamiento hacia la derecha -> Anterior
+    }
+
+    touchStartX.current = null;
+  };
+
   return (
-    <div className="w-full h-64 overflow-hidden rounded-xl mb-4 border border-[#e8ded1] bg-[#fdfbf7] relative shadow-inner group flex items-center justify-center p-2">
+    <div
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="w-full h-64 overflow-hidden rounded-xl mb-4 border border-[#e8ded1] bg-[#fdfbf7] relative shadow-inner group flex items-center justify-center p-2 select-none touch-pan-y"
+    >
       <div className="relative w-full h-full">
         <Image
           src={imageList[currentIndex]}
@@ -55,31 +84,45 @@ function ProductImageCarousel({
           priority={currentIndex === 0}
         />
       </div>
+
       {imageList.length > 1 && (
         <>
+          {/* Botón Anterior: Visible siempre en pantallas pequeñas, se atenúa en pantallas con hover */}
           <button
             onClick={prevImage}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/60 hover:bg-[#3d2b1f]/80 text-white p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs z-10"
+            className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
             aria-label="Imagen anterior"
           >
             ❮
           </button>
+
+          {/* Botón Siguiente: Visible siempre en pantallas pequeñas, se atenúa en pantallas con hover */}
           <button
             onClick={nextImage}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/60 hover:bg-[#3d2b1f]/80 text-white p-2 rounded-full backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs z-10"
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
             aria-label="Siguiente imagen"
           >
             ❯
           </button>
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 bg-[#3d2b1f]/40 backdrop-blur-sm px-2.5 py-1 rounded-full z-10">
+
+          {/* Indicadores de Posición Inferiores */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 bg-[#3d2b1f]/50 backdrop-blur-sm px-3 py-1.5 rounded-full z-10 items-center">
             {imageList.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => setCurrentIndex(idx)}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${
-                  currentIndex === idx ? 'bg-white w-3' : 'bg-white/50'
-                }`}
-              />
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentIndex(idx);
+                }}
+                className={`p-1 focus:outline-none`}
+                aria-label={`Ir a la imagen ${idx + 1}`}
+              >
+                <span
+                  className={`block rounded-full transition-all duration-300 ${
+                    currentIndex === idx ? 'bg-white w-3 h-1.5' : 'bg-white/50 w-1.5 h-1.5'
+                  }`}
+                />
+              </button>
             ))}
           </div>
         </>
@@ -87,6 +130,7 @@ function ProductImageCarousel({
     </div>
   );
 }
+
 export default function Home() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -110,27 +154,27 @@ export default function Home() {
 
         // 2. Cargar productos con sus relaciones
         const { data: productsData, error: prodError } = await supabase
-  .from('products')
-  .select(`
-    id,
-    name,
-    slug,
-    commentary,
-    price,
-    dimensions,
-    images,
-    is_available,
-    product_categories (
-      category_id
-    ),
-    product_wax_aromas (
-      layer_number,
-      wax_types:wax_type_id ( name ),
-      aromas:aroma_id ( name )
-    )
-  `)
-  .eq('is_available', true);
-  
+          .from('products')
+          .select(`
+            id,
+            name,
+            slug,
+            commentary,
+            price,
+            dimensions,
+            images,
+            is_available,
+            product_categories (
+              category_id
+            ),
+            product_wax_aromas (
+              layer_number,
+              wax_types:wax_type_id ( name ),
+              aromas:aroma_id ( name )
+            )
+          `)
+          .eq('is_available', true);
+
         if (prodError) console.error('Error al cargar productos:', prodError.message);
 
         if (productsData) {
@@ -179,7 +223,6 @@ export default function Home() {
     window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
   };
 
-  // 👈 Filtro corregido con .includes() sobre category_ids
   const filteredProducts = products.filter((product) => {
     const matchesCategory = selectedCategory
       ? product.category_ids?.includes(selectedCategory)
@@ -191,6 +234,7 @@ export default function Home() {
 
     return matchesCategory && matchesSearch;
   });
+
   return (
     <main
       className="min-h-screen text-[#4a3b2c] relative font-[var(--font-montserrat)] flex flex-col justify-between bg-cover bg-center bg-fixed"

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 const DEFAULT_AROMA_ID = 75; // ID correspondiente a 'Varios' tabla aroma
 const DEFAULT_WAX_TYPE_ID = 3; // ID correspondiente a 'Parafina' tabla tipo de cera
@@ -54,7 +55,6 @@ interface RawProductData extends Omit<Product, 'category_ids' | 'aroma_ids'> {
   product_categories?: RawProductCategory[];
   product_wax_aromas?: RawProductWaxAroma[];
 }
-
 export default function AdminPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [aromas, setAromas] = useState<Aroma[]>([]);
@@ -197,37 +197,34 @@ export default function AdminPage() {
     setIsModalOpen(true);
   };
 
+  // Subida de imágenes optimizada con Promise.all
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     setUploading(true);
 
     const files = Array.from(e.target.files);
-    const newImages: string[] = [];
 
-    for (const file of files) {
+    const uploadPromises = files.map(async (file) => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-      const filePath = `${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('products')
-        .upload(filePath, file, { upsert: true });
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) {
         console.error(`Error al subir ${file.name}:`, uploadError.message);
-        alert(`Error al subir ${file.name}: ${uploadError.message}`);
-      } else {
-        const { data } = supabase.storage
-          .from('products')
-          .getPublicUrl(filePath);
-
-        if (data?.publicUrl) {
-          newImages.push(data.publicUrl);
-        }
+        return null;
       }
-    }
 
-    setImages((prev) => [...prev, ...newImages]);
+      const { data } = supabase.storage.from('products').getPublicUrl(fileName);
+      return data?.publicUrl || null;
+    });
+
+    const uploadedUrls = await Promise.all(uploadPromises);
+    const validImages = uploadedUrls.filter((url): url is string => url !== null);
+
+    setImages((prev) => [...prev, ...validImages]);
     setUploading(false);
 
     if (fileInputRef.current) {
@@ -243,13 +240,16 @@ export default function AdminPage() {
     e.preventDefault();
     setSaving(true);
 
-    const finalSlug = editingProduct?.slug
+    const trimmedName = name.trim();
+
+    // Actualización inteligente del slug si cambia el nombre
+    const finalSlug = editingProduct && editingProduct.name === trimmedName
       ? editingProduct.slug
-      : generateSlug(name);
+      : generateSlug(trimmedName);
 
     const parsedPrice = parseFloat(price);
     const productPayload = {
-      name: name.trim(),
+      name: trimmedName,
       slug: finalSlug,
       commentary: commentary.trim(),
       price: isNaN(parsedPrice) ? 0 : parsedPrice,
@@ -349,7 +349,6 @@ export default function AdminPage() {
     }
     fetchAdminData();
   };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-[#fdfbf7] flex items-center justify-center font-[var(--font-montserrat)] text-[#3d2b1f]">
@@ -408,11 +407,15 @@ export default function AdminPage() {
               >
                 <div>
                   {prod.images && prod.images.length > 0 && (
-                    <img
-                      src={prod.images[0]}
-                      alt={prod.name}
-                      className="w-full h-32 object-cover rounded-lg mb-3 border border-[#f2eae1]"
-                    />
+                    <div className="relative w-full h-32 mb-3 rounded-lg overflow-hidden border border-[#f2eae1]">
+                      <Image
+                        src={prod.images[0]}
+                        alt={prod.name}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
                   )}
                   <h3 className="font-bold text-sm text-[#3d2b1f]">{prod.name}</h3>
                   <p className="text-xs text-[#7a5c29] italic mt-1">{prod.commentary || 'Sin comentario'}</p>
@@ -588,11 +591,17 @@ export default function AdminPage() {
                   <div className="flex flex-wrap gap-2 mt-3">
                     {images.map((imgUrl, idx) => (
                       <div key={idx} className="relative group w-16 h-16 border border-[#c9b596] rounded-lg overflow-hidden">
-                        <img src={imgUrl} alt={`Vista previa ${idx}`} className="w-full h-full object-cover" />
+                        <Image
+                          src={imgUrl}
+                          alt={`Vista previa ${idx}`}
+                          fill
+                          className="object-cover"
+                          unoptimized
+                        />
                         <button
                           type="button"
                           onClick={() => handleRemoveImage(idx)}
-                          className="absolute top-0 right-0 bg-rose-600 text-white text-[10px] w-4 h-4 rounded-bl flex items-center justify-center opacity-80 hover:opacity-100 cursor-pointer"
+                          className="absolute top-0 right-0 bg-rose-600 text-white text-[10px] w-4 h-4 rounded-bl flex items-center justify-center opacity-80 hover:opacity-100 cursor-pointer z-10"
                         >
                           ✕
                         </button>
