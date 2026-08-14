@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 
+const DEFAULT_AROMA_ID = 75;
+
 interface Category {
   id: number;
   name: string;
@@ -23,6 +25,7 @@ interface Product {
   images: string[];
   is_available: boolean;
   category_ids?: number[];
+  aroma_ids?: number[];
 }
 
 export default function AdminPage() {
@@ -39,7 +42,8 @@ export default function AdminPage() {
   const [price, setPrice] = useState('');
   const [dimensions, setDimensions] = useState('');
   const [images, setImages] = useState<string[]>([]);
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]); // 👈 CORRECCIÓN 1: Estado agregado
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
+  const [selectedAromaIds, setSelectedAromaIds] = useState<number[]>([DEFAULT_AROMA_ID]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -70,15 +74,24 @@ export default function AdminPage() {
       const { data: catData } = await supabase.from('categories').select('*').order('name');
       if (catData) setCategories(catData);
 
-      const { data: aromaData } = await supabase.from('aromas').select('*').order('name');
-      if (aromaData) setAromas(aromaData);
+      // Traer aromas situando 'Varios' (75) al principio
+      const { data: aromaData } = await supabase.from('aromas').select('*');
+      if (aromaData) {
+        const sortedAromas = aromaData.sort((a, b) => {
+          if (a.id === DEFAULT_AROMA_ID) return -1;
+          if (b.id === DEFAULT_AROMA_ID) return 1;
+          return a.name.localeCompare(b.name);
+        });
+        setAromas(sortedAromas);
+      }
 
-      // 👈 CORRECCIÓN 2: Consulta relacional a product_categories
+      // Consulta relacional incluyendo product_wax_aromas
       const { data: prodData, error: prodError } = await supabase
         .from('products')
         .select(`
           *,
-          product_categories ( category_id )
+          product_categories ( category_id ),
+          product_wax_aromas ( aroma_id )
         `)
         .order('id', { ascending: false });
 
@@ -87,7 +100,8 @@ export default function AdminPage() {
       if (prodData) {
         const formattedProducts: Product[] = prodData.map((prod: any) => ({
           ...prod,
-          category_ids: prod.product_categories?.map((pc: any) => pc.category_id) || []
+          category_ids: prod.product_categories?.map((pc: any) => pc.category_id) || [],
+          aroma_ids: prod.product_wax_aromas?.map((pwa: any) => pwa.aroma_id) || []
         }));
         setProducts(formattedProducts);
       }
@@ -106,7 +120,12 @@ export default function AdminPage() {
       setPrice(product.price.toString());
       setDimensions(product.dimensions || '');
       setImages(product.images || []);
-      setSelectedCategoryIds(product.category_ids || []); // 👈 CORRECCIÓN 3: Carga las categorías existentes al editar
+      setSelectedCategoryIds(product.category_ids || []);
+      setSelectedAromaIds(
+        product.aroma_ids && product.aroma_ids.length > 0
+          ? product.aroma_ids
+          : [DEFAULT_AROMA_ID]
+      );
     } else {
       setEditingProduct(null);
       setName('');
@@ -115,6 +134,7 @@ export default function AdminPage() {
       setDimensions('');
       setImages([]);
       setSelectedCategoryIds([]);
+      setSelectedAromaIds([DEFAULT_AROMA_ID]);
     }
     setIsModalOpen(true);
   };
@@ -184,22 +204,17 @@ export default function AdminPage() {
       let productId = editingProduct?.id;
 
       if (editingProduct) {
-        // Actualizar datos básicos del producto
         const { error } = await supabase.from('products').update(productPayload).eq('id', editingProduct.id);
         if (error) throw error;
       } else {
-        // Insertar nuevo producto
         const { data, error } = await supabase.from('products').insert([productPayload]).select('id').single();
         if (error) throw error;
         if (data) productId = data.id;
       }
 
-      // 👈 CORRECCIÓN 4: Guardar las categorías en la tabla intermedia product_categories
       if (productId) {
-        // 1. Eliminar relaciones anteriores
+        // 1. Guardar Categorías
         await supabase.from('product_categories').delete().eq('product_id', productId);
-
-        // 2. Insertar las nuevas categorías seleccionadas
         if (selectedCategoryIds.length > 0) {
           const categoryRows = selectedCategoryIds.map((catId) => ({
             product_id: productId,
@@ -208,6 +223,17 @@ export default function AdminPage() {
           const { error: catError } = await supabase.from('product_categories').insert(categoryRows);
           if (catError) console.error('Error al asociar categorías:', catError.message);
         }
+
+        // 2. Guardar Aromas en product_wax_aromas
+        await supabase.from('product_wax_aromas').delete().eq('product_id', productId);
+        const aromasToSave = selectedAromaIds.length > 0 ? selectedAromaIds : [DEFAULT_AROMA_ID];
+        const aromaRows = aromasToSave.map((aromaId, index) => ({
+          product_id: productId,
+          aroma_id: aromaId,
+          layer_number: index + 1,
+        }));
+        const { error: aromaError } = await supabase.from('product_wax_aromas').insert(aromaRows);
+        if (aromaError) console.error('Error al asociar aromas:', aromaError.message);
       }
 
       setIsModalOpen(false);
@@ -368,7 +394,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* SECCIÓN DE CATEGORÍAS EN EL FORMULARIO */}
+              {/* SECCIÓN DE CATEGORÍAS */}
               <div className="mb-4">
                 <label className="block text-xs font-bold text-[#3d2b1f] mb-2 font-[var(--font-cinzel)]">
                   Categorías / Clasificaciones (Selecciona una o varias)
@@ -400,10 +426,41 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* Botón para seleccionar múltiples imágenes */}
+              {/* SECCIÓN DE AROMAS */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-[#3d2b1f] mb-2 font-[var(--font-cinzel)]">
+                  Aromas del Producto (Selecciona uno o varios)
+                </label>
+                <div className="flex flex-wrap gap-2 p-3 bg-white/60 border border-[#c9b596]/60 rounded-xl max-h-40 overflow-y-auto">
+                  {aromas.map((aroma) => {
+                    const isSelected = selectedAromaIds.includes(aroma.id);
+                    return (
+                      <button
+                        key={aroma.id}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedAromaIds(selectedAromaIds.filter((id) => id !== aroma.id));
+                          } else {
+                            setSelectedAromaIds([...selectedAromaIds, aroma.id]);
+                          }
+                        }}
+                        className={`text-xs px-3 py-1 rounded-full font-[var(--font-cinzel)] transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#c9b596] text-[#2d1f15] font-bold border border-[#b39e7d] shadow-sm'
+                            : 'bg-white/70 text-[#5c4a38] border border-gray-200 hover:bg-white'
+                        }`}
+                      >
+                        {isSelected ? '✓ ' : '+ '} {aroma.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* IMÁGENES */}
               <div>
                 <label className="block font-semibold mb-1 text-[#3d2b1f]">Imágenes del Producto</label>
-                
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -424,7 +481,6 @@ export default function AdminPage() {
                   </button>
                 </div>
 
-                {/* Previsualización de imágenes agregadas */}
                 {images.length > 0 && (
                   <div className="flex flex-wrap gap-2 mt-3">
                     {images.map((imgUrl, idx) => (
