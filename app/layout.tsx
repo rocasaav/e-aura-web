@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { Montserrat, Cinzel, Alex_Brush } from 'next/font/google';
 import './globals.css';
+import { CartProvider } from '@/context/CartContext';
+import CartDrawer from '@/components/CartDrawer';
 
 const montserrat = Montserrat({
   subsets: ['latin'],
@@ -35,7 +37,10 @@ export default function RootLayout({
       <body
         className={`${montserrat.variable} ${cinzel.variable} ${alexBrush.variable} antialiased`}
       >
-        {children}
+        <CartProvider>
+          {children}
+          <CartDrawer />
+        </CartProvider>
       </body>
     </html>
   );

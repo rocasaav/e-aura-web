@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { useCart } from '@/context/CartContext';
 
 interface Category {
   id: number;
@@ -111,7 +112,7 @@ function ProductImageCarousel({
                   e.stopPropagation();
                   setCurrentIndex(idx);
                 }}
-                className={`p-1 focus:outline-none`}
+                className="p-1 focus:outline-none"
                 aria-label={`Ir a la imagen ${idx + 1}`}
               >
                 <span
@@ -129,18 +130,16 @@ function ProductImageCarousel({
 }
 
 export default function Home() {
+  const { totalItems, setIsCartOpen, addToCart } = useCart();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   
-  // Estado para los productos en "Me Gusta"
   const [favorites, setFavorites] = useState<number[]>([]);
-
   const whatsappNumber = '5573589465';
 
-  // Cargar Favoritos guardados en localStorage al iniciar
   useEffect(() => {
     const savedFavorites = localStorage.getItem('e_aura_favorites');
     if (savedFavorites) {
@@ -152,7 +151,6 @@ export default function Home() {
     }
   }, []);
 
-  // Función para alternar el estado de "Me Gusta" de un producto
   const toggleFavorite = (productId: number) => {
     setFavorites((prev) => {
       const updated = prev.includes(productId)
@@ -168,7 +166,6 @@ export default function Home() {
     async function fetchData() {
       setLoading(true);
       try {
-        // 1. Cargar categorías
         const { data: catData, error: catError } = await supabase
           .from('categories')
           .select('*')
@@ -177,7 +174,6 @@ export default function Home() {
         if (catError) console.error('Error al cargar categorías:', catError.message);
         if (catData) setCategories(catData);
 
-        // 2. Cargar productos con sus relaciones
         const { data: productsData, error: prodError } = await supabase
           .from('products')
           .select(`
@@ -203,16 +199,16 @@ export default function Home() {
         if (prodError) console.error('Error al cargar productos:', prodError.message);
 
         if (productsData) {
-          const formattedProducts = productsData.map((prod: any) => {
+          const formattedProducts: Product[] = productsData.map((prod: Record<string, any>) => {
             const waxTypes = prod.product_wax_aromas
-              ?.map((item: any) => item.wax_types?.name)
+              ?.map((item: Record<string, any>) => item.wax_types?.name)
               .filter(Boolean);
             const aromas = prod.product_wax_aromas
-              ?.map((item: any) => item.aromas?.name)
+              ?.map((item: Record<string, any>) => item.aromas?.name)
               .filter(Boolean);
 
             const categoryIds = prod.product_categories
-              ?.map((pc: any) => pc.category_id)
+              ?.map((pc: Record<string, any>) => pc.category_id)
               .filter(Boolean) || [];
 
             return {
@@ -275,10 +271,7 @@ export default function Home() {
               <span className="text-[9px] tracking-widest font-[var(--font-cinzel)] text-[#7a5c29] uppercase font-semibold block leading-none">
                 Nuestro catálogo
               </span>
-              <h1 
-                style={{ fontFamily: 'var(--font-alex-brush), "Alex Brush", cursive' }} 
-                className="text-3xl md:text-4xl text-[#5a3e2b] leading-tight my-0 tracking-normal"
-              >
+              <h1 className="font-[var(--font-alex-brush)] text-3xl md:text-4xl text-[#5a3e2b] leading-tight my-0 tracking-normal">
                 E-Aura
               </h1>
             </div>
@@ -292,7 +285,6 @@ export default function Home() {
                 className="w-full sm:w-60 text-xs px-3 py-1.5 rounded-full bg-white/70 backdrop-blur-sm border border-[#c9b596]/60 focus:outline-none focus:ring-2 focus:ring-[#7a5c29]/40 text-[#3d2b1f]"
               />
 
-              {/* BOTÓN "MIS ME GUSTA" EN EL ENCABEZADO */}
               <Link
                 href="/mis-favoritos"
                 className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white font-[var(--font-cinzel)] transition-all shadow-sm active:scale-95 border border-[#3d2b1f]"
@@ -300,11 +292,23 @@ export default function Home() {
                 <span className="text-rose-400">♥</span>
                 <span>Mis Me Gusta</span>
                 {favorites.length > 0 && (
-                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full ml-0.5">
+                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
                     {favorites.length}
                   </span>
                 )}
               </Link>
+
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white font-[var(--font-cinzel)] transition-all shadow-sm active:scale-95 border border-[#3d2b1f] relative cursor-pointer"
+              >
+                <span>🛒 Carrito</span>
+                {totalItems > 0 && (
+                  <span className="bg-[#c9b596] text-[#2d1f15] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -389,12 +393,12 @@ export default function Home() {
                         </span>
                       </div>
 
-                      {/* BOTONES DE ACCIÓN (WHATSAPP + ME GUSTA) */}
-                      <div className="grid grid-cols-5 gap-2">
+                      {/* BOTONES DE ACCIÓN */}
+                      <div className="grid grid-cols-6 gap-1.5">
                         <button
                           onClick={() => handleWhatsAppQuote(product.name)}
                           style={{ backgroundImage: "url('/fondoWhatsApp.png')" }}
-                          className="col-span-4 bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-3 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
+                          className="col-span-3 bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-2 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
                         >
                           <svg className="w-4 h-4 fill-current text-[#128C7E]" viewBox="0 0 24 24">
                             <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 5.001l-1.416 5.17 5.291-1.387c1.464.798 3.118 1.218 4.779 1.219h.004c5.506 0 9.989-4.478 9.99-9.985 0-2.668-1.039-5.177-2.926-7.064c-1.886-1.887-4.394-2.925-7.064-2.925zm5.72 14.181c-.236.666-1.373 1.272-1.912 1.346-.492.068-1.127.098-1.821-.124-.424-.136-.971-.312-1.685-.623-2.977-1.295-4.921-4.303-5.07-4.502-.149-.199-1.21-1.609-1.21-3.07 0-1.46.764-2.18 1.037-2.478.273-.298.596-.372.795-.372.199 0 .398.003.57.011.183.008.428-.069.67.511.248.596.845 2.063.919 2.212.075.149.124.323.025.522-.099.199-.149.323-.298.497-.149.174-.313.389-.447.522-.149.149-.304.312-.131.61.174.298.774 1.278 1.66 2.068 1.14.1 2.046 1.341 2.344 1.54.298.199.472.174.646-.025.174-.199.745-.869.944-1.167.199-.298.398-.248.67-.149.273.099 1.738.82 2.036.969.298.149.497.223.571.348.074.124.074.72-.162 1.386z"/>
@@ -402,7 +406,16 @@ export default function Home() {
                           <span>Cotizar</span>
                         </button>
 
-                        {/* BOTÓN "ME GUSTA" EN LA TARJETA */}
+                        {/* BOTÓN "AGREGAR AL CARRITO" */}
+                        <button
+                          onClick={() => addToCart && addToCart(product)}
+                          title="Agregar al Carrito"
+                          className="col-span-2 bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white font-bold py-2.5 px-2 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 font-[var(--font-cinzel)]"
+                        >
+                          🛒 <span>+</span>
+                        </button>
+
+                        {/* BOTÓN "ME GUSTA" */}
                         <button
                           onClick={() => toggleFavorite(product.id)}
                           title={isFavorite ? "Quitar de Me Gusta" : "Agregar a Me Gusta"}
