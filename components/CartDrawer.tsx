@@ -21,7 +21,7 @@ export default function CartDrawer() {
     if (cart.length === 0) return;
 
     // TODO: Reemplaza con tu número de WhatsApp real (a 10 dígitos con clave de país 52)
-    const phoneNumber = '525512345678';
+    const phoneNumber = '525573589465';
 
     let message = '¡Hola! 🕯️ Me gustaría realizar el siguiente pedido en E-Aura:\n\n';
 
