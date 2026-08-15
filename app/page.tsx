@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
 interface Category {
@@ -47,7 +48,6 @@ function ProductImageCarousel({
     setCurrentIndex((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
   };
 
-  // Manejadores para la interacción táctil (Swipe)
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     touchStartX.current = e.touches[0].clientX;
   };
@@ -57,12 +57,12 @@ function ProductImageCarousel({
     
     const touchEndX = e.changedTouches[0].clientX;
     const swipeDistance = touchStartX.current - touchEndX;
-    const minSwipeDistance = 40; // Umbral mínimo de píxeles para reconocer un deslizamiento
+    const minSwipeDistance = 40;
 
     if (swipeDistance > minSwipeDistance) {
-      nextImage(); // Deslizamiento hacia la izquierda -> Siguiente
+      nextImage();
     } else if (swipeDistance < -minSwipeDistance) {
-      prevImage(); // Deslizamiento hacia la derecha -> Anterior
+      prevImage();
     }
 
     touchStartX.current = null;
@@ -87,7 +87,6 @@ function ProductImageCarousel({
 
       {imageList.length > 1 && (
         <>
-          {/* Botón Anterior: Visible siempre en pantallas pequeñas, se atenúa en pantallas con hover */}
           <button
             onClick={prevImage}
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
@@ -96,7 +95,6 @@ function ProductImageCarousel({
             ❮
           </button>
 
-          {/* Botón Siguiente: Visible siempre en pantallas pequeñas, se atenúa en pantallas con hover */}
           <button
             onClick={nextImage}
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
@@ -105,7 +103,6 @@ function ProductImageCarousel({
             ❯
           </button>
 
-          {/* Indicadores de Posición Inferiores */}
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 bg-[#3d2b1f]/50 backdrop-blur-sm px-3 py-1.5 rounded-full z-10 items-center">
             {imageList.map((_, idx) => (
               <button
@@ -137,7 +134,35 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Estado para los productos en "Me Gusta"
+  const [favorites, setFavorites] = useState<number[]>([]);
+
   const whatsappNumber = '5573589465';
+
+  // Cargar Favoritos guardados en localStorage al iniciar
+  useEffect(() => {
+    const savedFavorites = localStorage.getItem('e_aura_favorites');
+    if (savedFavorites) {
+      try {
+        setFavorites(JSON.parse(savedFavorites));
+      } catch (e) {
+        console.error('Error al cargar favoritos de localStorage:', e);
+      }
+    }
+  }, []);
+
+  // Función para alternar el estado de "Me Gusta" de un producto
+  const toggleFavorite = (productId: number) => {
+    setFavorites((prev) => {
+      const updated = prev.includes(productId)
+        ? prev.filter((id) => id !== productId)
+        : [...prev, productId];
+
+      localStorage.setItem('e_aura_favorites', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -244,8 +269,8 @@ export default function Home() {
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-screen justify-between">
         
         {/* ENCABEZADO */}
-        <header className="border border-[#7a5c29]/20 backdrop-blur-md rounded-2xl px-4 py-2 bg-white/40 shadow-sm mb-3">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-1.5">
+        <header className="border border-[#7a5c29]/20 backdrop-blur-md rounded-2xl px-4 py-3 bg-white/40 shadow-sm mb-3">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-3">
             <div className="text-center md:text-left">
               <span className="text-[9px] tracking-widest font-[var(--font-cinzel)] text-[#7a5c29] uppercase font-semibold block leading-none">
                 Nuestro catálogo
@@ -257,17 +282,33 @@ export default function Home() {
                 E-Aura
               </h1>
             </div>
-            <div className="w-full md:w-60">
+
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
               <input
                 type="text"
                 placeholder="Buscar diseño o aroma..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-xs px-3 py-1 rounded-full bg-white/70 backdrop-blur-sm border border-[#c9b596]/60 focus:outline-none focus:ring-2 focus:ring-[#7a5c29]/40 text-[#3d2b1f]"
+                className="w-full sm:w-60 text-xs px-3 py-1.5 rounded-full bg-white/70 backdrop-blur-sm border border-[#c9b596]/60 focus:outline-none focus:ring-2 focus:ring-[#7a5c29]/40 text-[#3d2b1f]"
               />
+
+              {/* BOTÓN "MIS ME GUSTA" EN EL ENCABEZADO */}
+              <Link
+                href="/mis-favoritos"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white font-[var(--font-cinzel)] transition-all shadow-sm active:scale-95 border border-[#3d2b1f]"
+              >
+                <span className="text-rose-400">♥</span>
+                <span>Mis Me Gusta</span>
+                {favorites.length > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full ml-0.5">
+                    {favorites.length}
+                  </span>
+                )}
+              </Link>
             </div>
           </div>
-          <nav className="flex flex-wrap items-center justify-center gap-1.5 pt-1.5 mt-1 border-t border-[#7a5c29]/15 pb-2">
+
+          <nav className="flex flex-wrap items-center justify-center gap-1.5 pt-2 mt-2 border-t border-[#7a5c29]/15 pb-1">
             <button
               onClick={() => setSelectedCategory(null)}
               className={`text-xs px-3 py-0.5 rounded-full font-[var(--font-cinzel)] transition-all ${
@@ -313,49 +354,71 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => (
-                <div
-                  key={product.id}
-                  className="bg-white/50 backdrop-blur-md rounded-2xl p-5 border border-white/80 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between"
-                >
-                  <div>
-                    <ProductImageCarousel
-                      mainImage={product.image_url}
-                      images={product.images}
-                      productName={product.name}
-                    />
-                    <h3 className="font-[var(--font-cinzel)] font-bold text-base text-[#2d1f15] text-center mb-1 leading-snug">
-                      {product.name}
-                    </h3>
-                    <p className="text-xs text-[#5c4a38] text-center mb-3 leading-relaxed">
-                      {product.description}
-                    </p>
-                    <div className="text-xs text-[#6b5235] space-y-1 mb-4 bg-white/60 p-3 rounded-xl border border-white/70">
-                      <div><strong className="text-[#3d2b1f]">Cera:</strong> {product.wax_type}</div>
-                      <div><strong className="text-[#3d2b1f]">Aroma:</strong> {product.aroma}</div>
-                      <div><strong className="text-[#3d2b1f]">Medidas:</strong> {product.dimensions}</div>
+              {filteredProducts.map((product) => {
+                const isFavorite = favorites.includes(product.id);
+
+                return (
+                  <div
+                    key={product.id}
+                    className="bg-white/50 backdrop-blur-md rounded-2xl p-5 border border-white/80 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative group"
+                  >
+                    <div>
+                      <ProductImageCarousel
+                        mainImage={product.image_url}
+                        images={product.images}
+                        productName={product.name}
+                      />
+                      <h3 className="font-[var(--font-cinzel)] font-bold text-base text-[#2d1f15] text-center mb-1 leading-snug">
+                        {product.name}
+                      </h3>
+                      <p className="text-xs text-[#5c4a38] text-center mb-3 leading-relaxed">
+                        {product.description}
+                      </p>
+                      <div className="text-xs text-[#6b5235] space-y-1 mb-4 bg-white/60 p-3 rounded-xl border border-white/70">
+                        <div><strong className="text-[#3d2b1f]">Cera:</strong> {product.wax_type}</div>
+                        <div><strong className="text-[#3d2b1f]">Aroma:</strong> {product.aroma}</div>
+                        <div><strong className="text-[#3d2b1f]">Medidas:</strong> {product.dimensions}</div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-center mb-3">
+                        <span className="font-[var(--font-cinzel)] font-bold text-xl text-[#2d1f15]">
+                          ${product.price.toFixed(2)}{' '}
+                          <span className="text-xs font-normal text-[#6b5235]">MXN</span>
+                        </span>
+                      </div>
+
+                      {/* BOTONES DE ACCIÓN (WHATSAPP + ME GUSTA) */}
+                      <div className="grid grid-cols-5 gap-2">
+                        <button
+                          onClick={() => handleWhatsAppQuote(product.name)}
+                          style={{ backgroundImage: "url('/fondoWhatsApp.png')" }}
+                          className="col-span-4 bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-3 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1.5 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
+                        >
+                          <svg className="w-4 h-4 fill-current text-[#128C7E]" viewBox="0 0 24 24">
+                            <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 5.001l-1.416 5.17 5.291-1.387c1.464.798 3.118 1.218 4.779 1.219h.004c5.506 0 9.989-4.478 9.99-9.985 0-2.668-1.039-5.177-2.926-7.064c-1.886-1.887-4.394-2.925-7.064-2.925zm5.72 14.181c-.236.666-1.373 1.272-1.912 1.346-.492.068-1.127.098-1.821-.124-.424-.136-.971-.312-1.685-.623-2.977-1.295-4.921-4.303-5.07-4.502-.149-.199-1.21-1.609-1.21-3.07 0-1.46.764-2.18 1.037-2.478.273-.298.596-.372.795-.372.199 0 .398.003.57.011.183.008.428-.069.67.511.248.596.845 2.063.919 2.212.075.149.124.323.025.522-.099.199-.149.323-.298.497-.149.174-.313.389-.447.522-.149.149-.304.312-.131.61.174.298.774 1.278 1.66 2.068 1.14.1 2.046 1.341 2.344 1.54.298.199.472.174.646-.025.174-.199.745-.869.944-1.167.199-.298.398-.248.67-.149.273.099 1.738.82 2.036.969.298.149.497.223.571.348.074.124.074.72-.162 1.386z"/>
+                          </svg>
+                          <span>Cotizar</span>
+                        </button>
+
+                        {/* BOTÓN "ME GUSTA" EN LA TARJETA */}
+                        <button
+                          onClick={() => toggleFavorite(product.id)}
+                          title={isFavorite ? "Quitar de Me Gusta" : "Agregar a Me Gusta"}
+                          className={`col-span-1 rounded-xl flex items-center justify-center text-base border transition-all active:scale-90 ${
+                            isFavorite
+                              ? 'bg-rose-100 border-rose-300 text-rose-600 shadow-inner'
+                              : 'bg-white/80 border-[#c9b596]/50 text-gray-400 hover:text-rose-500 hover:bg-white'
+                          }`}
+                        >
+                          {isFavorite ? '♥' : '♡'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-center mb-3">
-                      <span className="font-[var(--font-cinzel)] font-bold text-xl text-[#2d1f15]">
-                        ${product.price.toFixed(2)}{' '}
-                        <span className="text-xs font-normal text-[#6b5235]">MXN</span>
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleWhatsAppQuote(product.name)}
-                      style={{ backgroundImage: "url('/fondoWhatsApp.png')" }}
-                      className="w-full bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-4 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-2 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
-                    >
-                      <svg className="w-4 h-4 fill-current text-[#128C7E]" viewBox="0 0 24 24">
-                        <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 5.001l-1.416 5.17 5.291-1.387c1.464.798 3.118 1.218 4.779 1.219h.004c5.506 0 9.989-4.478 9.99-9.985 0-2.668-1.039-5.177-2.926-7.064c-1.886-1.887-4.394-2.925-7.064-2.925zm5.72 14.181c-.236.666-1.373 1.272-1.912 1.346-.492.068-1.127.098-1.821-.124-.424-.136-.971-.312-1.685-.623-2.977-1.295-4.921-4.303-5.07-4.502-.149-.199-1.21-1.609-1.21-3.07 0-1.46.764-2.18 1.037-2.478.273-.298.596-.372.795-.372.199 0 .398.003.57.011.183.008.428-.069.67.511.248.596.845 2.063.919 2.212.075.149.124.323.025.522-.099.199-.149.323-.298.497-.149.174-.313.389-.447.522-.149.149-.304.312-.131.61.174.298.774 1.278 1.66 2.068 1.14.1 2.046 1.341 2.344 1.54.298.199.472.174.646-.025.174-.199.745-.869.944-1.167.199-.298.398-.248.67-.149.273.099 1.738.82 2.036.969.298.149.497.223.571.348.074.124.074.72-.162 1.386z"/>
-                      </svg>
-                      <span>Cotizar por WhatsApp</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </section>
