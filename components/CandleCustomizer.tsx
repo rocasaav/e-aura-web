@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 
-export default function CandleCustomizer({ onClose, onSave }) {
+interface CandleCustomizerProps {
+  onClose?: () => void;
+  onSave?: (data: { color: string; aroma: string; label: string }) => void;
+}
+
+export default function CandleCustomizer({ 
+  onClose, 
+  onSave 
+}: CandleCustomizerProps) {
   // Estados para las diferentes opciones personalizables de la vela
   const [color, setColor] = useState('#FDFBF7');
   const [aroma, setAroma] = useState('Vainilla');
