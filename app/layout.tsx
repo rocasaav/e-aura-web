@@ -4,6 +4,7 @@ import './globals.css';
 import { CartProvider } from '@/context/CartContext';
 import CartDrawer from '@/components/CartDrawer';
 
+
 const montserrat = Montserrat({
   subsets: ['latin'],
   variable: '--font-montserrat',
@@ -16,7 +17,7 @@ const cinzel = Cinzel({
 
 // Tipografía exacta al logotipo de E-Aura
 const alexBrush = Alex_Brush({
-  weight: ['400'],
+  weight: '400',
   subsets: ['latin'],
   variable: '--font-alex-brush',
   display: 'swap',
@@ -33,9 +34,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" data-scroll-behavior="smooth">
       <body
-        className={`${montserrat.variable} ${cinzel.variable} ${alexBrush.variable} antialiased`}
+        className={`${alexBrush.variable} ${montserrat.variable} ${cinzel.variable} font-sans antialiased text-stone-800 bg-stone-50`}
       >
         <CartProvider>
           {children}

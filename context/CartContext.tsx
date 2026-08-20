@@ -1,21 +1,30 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 
 export interface CartItem {
+  cartItemId: string; // Identificador único por variante personalizada
   id: number;
   name: string;
   price: number;
   image?: string;
   quantity: number;
+  colorName?: string;
+  colorHex?: string;
   selectedAroma?: string;
 }
 
+// Tipo flexible para recibir datos en `addToCart`
+export type AddToCartInput = Omit<CartItem, 'quantity' | 'cartItemId'> & {
+  cartItemId?: string;
+  image_url?: string;
+};
+
 interface CartContextType {
   cart: CartItem[];
-  addToCart: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
-  removeFromCart: (id: number) => void;
-  updateQuantity: (id: number, quantity: number) => void;
+  addToCart: (item: AddToCartInput, quantity?: number) => void;
+  removeFromCart: (cartItemIdOrId: string | number) => void;
+  updateQuantity: (cartItemIdOrId: string | number, quantity: number) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -28,8 +37,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const isLoaded = useRef(false);
 
-  // Cargar carrito desde localStorage al iniciar
+  // 1. Cargar carrito desde localStorage al montar
   useEffect(() => {
     const savedCart = localStorage.getItem('e_aura_cart');
     if (savedCart) {
@@ -39,37 +49,74 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         console.error('Error al cargar el carrito:', e);
       }
     }
+    isLoaded.current = true;
   }, []);
 
-  // Guardar en localStorage ante cualquier cambio
+  // 2. Guardar en localStorage solo después de la carga inicial
   useEffect(() => {
-    localStorage.setItem('e_aura_cart', JSON.stringify(cart));
+    if (isLoaded.current) {
+      localStorage.setItem('e_aura_cart', JSON.stringify(cart));
+    }
   }, [cart]);
 
-  const addToCart = (product: Omit<CartItem, 'quantity'>, quantity = 1) => {
+  const addToCart = (product: AddToCartInput, quantity = 1) => {
+    const imageUrl = product.image || product.image_url || '';
+    
+    // Generar un cartItemId único combinando ID, color y aroma
+    const color = product.colorName || 'estandar';
+    const aroma = product.selectedAroma || 'sin-aroma';
+    const generatedItemId = product.cartItemId || `${product.id}-${color}-${aroma}`.toLowerCase().replace(/\s+/g, '-');
+
     setCart((prevCart) => {
-      const existingIndex = prevCart.findIndex((item) => item.id === product.id);
+      const existingIndex = prevCart.findIndex(
+        (item) => item.cartItemId === generatedItemId || (item.id === product.id && item.colorName === product.colorName && item.selectedAroma === product.selectedAroma)
+      );
+      
       if (existingIndex > -1) {
         const updated = [...prevCart];
-        updated[existingIndex].quantity += quantity;
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          quantity: updated[existingIndex].quantity + quantity,
+        };
         return updated;
       }
-      return [...prevCart, { ...product, quantity }];
+
+      return [
+        ...prevCart,
+        {
+          cartItemId: generatedItemId,
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: imageUrl,
+          colorName: product.colorName,
+          colorHex: product.colorHex,
+          selectedAroma: product.selectedAroma,
+          quantity,
+        },
+      ];
     });
-    setIsCartOpen(true); // Abre el drawer al agregar
+
+    setIsCartOpen(true);
   };
 
-  const removeFromCart = (id: number) => {
-    setCart((prevCart) => prevCart.filter((item) => item.id !== id));
+  const removeFromCart = (cartItemIdOrId: string | number) => {
+    setCart((prevCart) =>
+      prevCart.filter((item) => item.cartItemId !== String(cartItemIdOrId) && item.id !== Number(cartItemIdOrId))
+    );
   };
 
-  const updateQuantity = (id: number, quantity: number) => {
+  const updateQuantity = (cartItemIdOrId: string | number, quantity: number) => {
     if (quantity <= 0) {
-      removeFromCart(id);
+      removeFromCart(cartItemIdOrId);
       return;
     }
     setCart((prevCart) =>
-      prevCart.map((item) => (item.id === id ? { ...item, quantity } : item))
+      prevCart.map((item) =>
+        item.cartItemId === String(cartItemIdOrId) || item.id === Number(cartItemIdOrId)
+          ? { ...item, quantity }
+          : item
+      )
     );
   };
 

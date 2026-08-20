@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useCart } from '@/context/CartContext';
 
+// --- INTERFACES BASADAS EN EL ESQUEMA REAL DE SUPABASE ---
+
 interface Category {
   id: number;
   name: string;
@@ -15,13 +17,38 @@ interface Product {
   id: number;
   category_ids: number[];
   name: string;
+  slug?: string;
   description: string;
   price: number;
   wax_type: string;
   aroma: string;
   dimensions: string;
   image_url: string;
-  images?: string[];
+  images: string[];
+  is_available: boolean;
+}
+
+interface ProductWaxAromaQueryResult {
+  layer_number?: number;
+  wax_types?: { name: string } | null;
+  aromas?: { name: string } | null;
+}
+
+interface ProductCategoryQueryResult {
+  category_id: number;
+}
+
+interface ProductQueryResult {
+  id: number;
+  name: string;
+  slug?: string;
+  commentary?: string;
+  price: number;
+  dimensions?: string;
+  images?: string[] | null;
+  is_available: boolean;
+  product_categories?: ProductCategoryQueryResult[];
+  product_wax_aromas?: ProductWaxAromaQueryResult[];
 }
 
 interface ProductImageCarouselProps {
@@ -55,7 +82,7 @@ function ProductImageCarousel({
 
   const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     if (touchStartX.current === null) return;
-    
+
     const touchEndX = e.changedTouches[0].clientX;
     const swipeDistance = touchStartX.current - touchEndX;
     const minSwipeDistance = 40;
@@ -77,7 +104,7 @@ function ProductImageCarousel({
     >
       <div className="relative w-full h-full">
         <Image
-          src={imageList[currentIndex]}
+          src={imageList[currentIndex] || '/placeholder.png'}
           alt={`${productName} - Vista ${currentIndex + 1}`}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -89,6 +116,7 @@ function ProductImageCarousel({
       {imageList.length > 1 && (
         <>
           <button
+            type="button"
             onClick={prevImage}
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
             aria-label="Imagen anterior"
@@ -97,6 +125,7 @@ function ProductImageCarousel({
           </button>
 
           <button
+            type="button"
             onClick={nextImage}
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
             aria-label="Siguiente imagen"
@@ -108,6 +137,7 @@ function ProductImageCarousel({
             {imageList.map((_, idx) => (
               <button
                 key={idx}
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   setCurrentIndex(idx);
@@ -136,11 +166,16 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
-  
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const [favorites, setFavorites] = useState<number[]>([]);
+  const [mounted, setMounted] = useState(false);
+
   const whatsappNumber = '5573589465';
 
+  // Hidratación segura de favoritos en el cliente
   useEffect(() => {
+    setMounted(true);
     const savedFavorites = localStorage.getItem('e_aura_favorites');
     if (savedFavorites) {
       try {
@@ -165,15 +200,18 @@ export default function Home() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
+      setErrorMessage(null);
       try {
+        // 1. Cargar Categorías
         const { data: catData, error: catError } = await supabase
           .from('categories')
-          .select('*')
+          .select('id, name')
           .order('name', { ascending: true });
 
-        if (catError) console.error('Error al cargar categorías:', catError.message);
+        if (catError) throw catError;
         if (catData) setCategories(catData);
 
+        // 2. Cargar Productos y sus relaciones
         const { data: productsData, error: prodError } = await supabase
           .from('products')
           .select(`
@@ -196,39 +234,45 @@ export default function Home() {
           `)
           .eq('is_available', true);
 
-        if (prodError) console.error('Error al cargar productos:', prodError.message);
+        if (prodError) throw prodError;
 
         if (productsData) {
-          const formattedProducts: Product[] = productsData.map((prod: Record<string, any>) => {
+          const formattedProducts: Product[] = (productsData as unknown as ProductQueryResult[]).map((prod) => {
             const waxTypes = prod.product_wax_aromas
-              ?.map((item: Record<string, any>) => item.wax_types?.name)
-              .filter(Boolean);
+              ?.map((item) => item.wax_types?.name)
+              .filter((name): name is string => Boolean(name));
+
             const aromas = prod.product_wax_aromas
-              ?.map((item: Record<string, any>) => item.aromas?.name)
-              .filter(Boolean);
+              ?.map((item) => item.aromas?.name)
+              .filter((name): name is string => Boolean(name));
 
             const categoryIds = prod.product_categories
-              ?.map((pc: Record<string, any>) => pc.category_id)
+              ?.map((pc) => pc.category_id)
               .filter(Boolean) || [];
+
+            const imageList = prod.images && prod.images.length > 0 ? prod.images : ['/placeholder.png'];
 
             return {
               id: prod.id,
               category_ids: categoryIds,
               name: prod.name,
-              description: prod.commentary || '',
-              price: prod.price,
-              wax_type: waxTypes?.length ? waxTypes.join(', ') : 'Cera Artesanal',
-              aroma: aromas?.length ? aromas.join(', ') : 'Aroma Natural',
+              slug: prod.slug,
+              description: prod.commentary || 'Vela artesanal personalizada hecha con insumos naturales de alta calidad.',
+              price: Number(prod.price) || 0,
+              wax_type: waxTypes?.length ? Array.from(new Set(waxTypes)).join(', ') : 'Cera Artesanal',
+              aroma: aromas?.length ? Array.from(new Set(aromas)).join(', ') : 'Aroma Natural',
               dimensions: prod.dimensions || 'N/A',
-              image_url: prod.images?.[0] || '/placeholder.png',
-              images: prod.images || [],
+              image_url: imageList[0],
+              images: imageList,
+              is_available: prod.is_available,
             };
           });
 
           setProducts(formattedProducts);
         }
-      } catch (err) {
-        console.error('Error inesperado:', err);
+      } catch (err: unknown) {
+        console.error('Error al consultar Supabase:', err);
+        setErrorMessage('No se pudieron cargar los productos. Por favor intenta de nuevo.');
       } finally {
         setLoading(false);
       }
@@ -265,14 +309,14 @@ export default function Home() {
       <div className="relative z-10 w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-screen justify-between">
         
         {/* ENCABEZADO */}
-        <header className="border border-[#7a5c29]/20 backdrop-blur-md rounded-2xl px-4 py-3 bg-white/40 shadow-sm mb-3">
+        <header className="border border-[#7a5c29]/20 backdrop-blur-md rounded-2xl px-4 py-3 bg-white/50 shadow-sm mb-3">
           <div className="flex flex-col md:flex-row justify-between items-center gap-3">
             <div className="text-center md:text-left">
-              <span className="text-[9px] tracking-widest font-[var(--font-cinzel)] text-[#7a5c29] uppercase font-semibold block leading-none">
+              <span className="text-[10px] tracking-widest font-serif text-[#7a5c29] uppercase font-semibold block leading-none">
                 Nuestro catálogo
               </span>
-              <h1 className="font-[var(--font-alex-brush)] text-3xl md:text-4xl text-[#5a3e2b] leading-tight my-0 tracking-normal">
-                E-Aura
+              <h1 className="font-cursive text-5xl md:text-6xl text-[#5a3e2b] leading-tight my-0">
+                  E-Aura
               </h1>
             </div>
 
@@ -286,19 +330,30 @@ export default function Home() {
               />
 
               <Link
-                href="/mis-favoritos"
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white font-[var(--font-cinzel)] transition-all shadow-sm active:scale-95 border border-[#3d2b1f]"
-              >
-                <span className="text-rose-400">♥</span>
-                <span>Mis Me Gusta</span>
-                {favorites.length > 0 && (
-                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
-                    {favorites.length}
-                  </span>
-                )}
-              </Link>
+  href="/mis-favoritos"
+  onClick={(e) => {
+    if (!mounted || favorites.length === 0) {
+      e.preventDefault();
+    }
+  }}
+  aria-disabled={!mounted || favorites.length === 0}
+  className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-serif transition-all shadow-sm border border-[#3d2b1f] ${
+    mounted && favorites.length > 0
+      ? 'bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white active:scale-95 cursor-pointer'
+      : 'bg-[#5a3e2b]/50 text-white/60 border-[#3d2b1f]/40 opacity-50 cursor-not-allowed pointer-events-none'
+  }`}
+>
+  <span className={mounted && favorites.length > 0 ? "text-rose-400" : "text-gray-300"}>♥</span>
+  <span>Mis Me Gusta</span>
+  {mounted && favorites.length > 0 && (
+    <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
+      {favorites.length}
+    </span>
+  )}
+</Link>
 
               <button
+                type="button"
                 onClick={() => setIsCartOpen(true)}
                 className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white font-[var(--font-cinzel)] transition-all shadow-sm active:scale-95 border border-[#3d2b1f] relative cursor-pointer"
               >
@@ -314,6 +369,7 @@ export default function Home() {
 
           <nav className="flex flex-wrap items-center justify-center gap-1.5 pt-2 mt-2 border-t border-[#7a5c29]/15 pb-1">
             <button
+              type="button"
               onClick={() => setSelectedCategory(null)}
               className={`text-xs px-3 py-0.5 rounded-full font-[var(--font-cinzel)] transition-all ${
                 selectedCategory === null
@@ -326,6 +382,7 @@ export default function Home() {
             {categories.map((cat) => (
               <button
                 key={cat.id}
+                type="button"
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`text-xs px-3 py-0.5 rounded-full font-[var(--font-cinzel)] transition-all ${
                   selectedCategory === cat.id
@@ -340,9 +397,9 @@ export default function Home() {
         </header>
 
         {/* CINTILLA CENTRAL */}
-        <div className="my-2 text-center">
-          <p className="font-[var(--font-cinzel)] text-xs md:text-sm tracking-[0.22em] text-[#5a3e2b] uppercase bg-[#fdfbf7]/60 backdrop-blur-md inline-block px-6 py-2 rounded-full border border-[#c9b596]/30 shadow-sm">
-            Velas Artesanales & Recuerdos Hechos a Mano
+        <div className="my-3 text-center">
+          <p className="font-serif text-xs md:text-sm tracking-[0.18em] text-[#5a3e2b] uppercase bg-[#fdfbf7]/70 backdrop-blur-md inline-block px-6 py-2 rounded-full border border-[#c9b596]/40 shadow-sm">
+            Velas Artesanales <span className="font-cursive text-xl lowercase text-[#7a5c29] tracking-normal px-1">&</span> Recuerdos Hechos a Mano
           </p>
         </div>
 
@@ -351,6 +408,10 @@ export default function Home() {
           {loading ? (
             <div className="text-center py-16 font-[var(--font-cinzel)] text-[#7a5c29]">
               <p className="animate-pulse tracking-widest uppercase text-xs">Cargando catálogo...</p>
+            </div>
+          ) : errorMessage ? (
+            <div className="text-center py-12 bg-rose-50/80 backdrop-blur-md rounded-2xl border border-rose-200 text-rose-800 text-xs font-[var(--font-cinzel)]">
+              {errorMessage}
             </div>
           ) : filteredProducts.length === 0 ? (
             <div className="text-center py-12 bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 text-[#6b5235]">
@@ -372,7 +433,7 @@ export default function Home() {
                         images={product.images}
                         productName={product.name}
                       />
-                      <h3 className="font-[var(--font-cinzel)] font-bold text-base text-[#2d1f15] text-center mb-1 leading-snug">
+                      <h3 className="font-cursive text-3xl md:text-4xl text-[#3d2b1f] text-center mb-1 leading-snug">
                         {product.name}
                       </h3>
                       <p className="text-xs text-[#5c4a38] text-center mb-3 leading-relaxed">
@@ -387,7 +448,7 @@ export default function Home() {
 
                     <div>
                       <div className="text-center mb-3">
-                        <span className="font-[var(--font-cinzel)] font-bold text-xl text-[#2d1f15]">
+                        <span className="font-serif font-bold text-xl text-[#2d1f15]">
                           ${product.price.toFixed(2)}{' '}
                           <span className="text-xs font-normal text-[#6b5235]">MXN</span>
                         </span>
@@ -396,6 +457,7 @@ export default function Home() {
                       {/* BOTONES DE ACCIÓN */}
                       <div className="grid grid-cols-6 gap-1.5">
                         <button
+                          type="button"
                           onClick={() => handleWhatsAppQuote(product.name)}
                           style={{ backgroundImage: "url('/fondoWhatsApp.png')" }}
                           className="col-span-3 bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-2 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
@@ -406,8 +468,8 @@ export default function Home() {
                           <span>Cotizar</span>
                         </button>
 
-                        {/* BOTÓN "AGREGAR AL CARRITO" */}
                         <button
+                          type="button"
                           onClick={() => addToCart && addToCart(product)}
                           title="Agregar al Carrito"
                           className="col-span-2 bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white font-bold py-2.5 px-2 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 font-[var(--font-cinzel)]"
@@ -415,8 +477,8 @@ export default function Home() {
                           🛒 <span>+</span>
                         </button>
 
-                        {/* BOTÓN "ME GUSTA" */}
                         <button
+                          type="button"
                           onClick={() => toggleFavorite(product.id)}
                           title={isFavorite ? "Quitar de Me Gusta" : "Agregar a Me Gusta"}
                           className={`col-span-1 rounded-xl flex items-center justify-center text-base border transition-all active:scale-90 ${
@@ -434,88 +496,6 @@ export default function Home() {
               })}
             </div>
           )}
-        </section>
-
-        {/* SECCIÓN QUIÉNES SOMOS */}
-        <section className="my-8 bg-white/45 backdrop-blur-md rounded-2xl p-6 md:p-8 border border-white/70 max-w-4xl mx-auto shadow-sm">
-          <div className="grid md:grid-cols-3 gap-6 items-center">
-            <div className="md:col-span-2 text-center md:text-left">
-              <span className="text-[10px] tracking-widest font-[var(--font-cinzel)] text-[#7a5c29] uppercase font-semibold">
-                Hecho con intención
-              </span>
-              <h2 className="font-[var(--font-cinzel)] text-lg md:text-xl font-bold text-[#3d2b1f] mb-3">
-                ¿Quiénes Somos en E-Aura?
-              </h2>
-              <p className="text-xs text-[#5c4a38] leading-relaxed">
-                Creamos velas artesanales y recuerdos únicos hechos totalmente a mano. Nos enfocamos en transformar espacios y momentos especiales mediante aromas envolventes y diseños elegantes elaborados con ceras de alta calidad.
-              </p>
-            </div>
-            
-            <div className="bg-white/40 p-4 rounded-xl border border-white/60 text-center space-y-2">
-              <div className="text-xs font-semibold text-[#3d2b1f]">✨ 100% Ceras Naturales</div>
-              <div className="text-[11px] text-[#6b5235]">Diseños personalizados para eventos especiales</div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECCIÓN CONTACTO DIRECTO */}
-        <section className="my-6 bg-white/45 backdrop-blur-md rounded-2xl p-6 border border-white/70 max-w-2xl mx-auto shadow-sm text-center">
-          <span className="text-[10px] tracking-widest font-[var(--font-cinzel)] text-[#7a5c29] uppercase font-semibold">
-            Atención Personalizada
-          </span>
-          <h3 className="font-[var(--font-cinzel)] text-sm font-bold text-[#3d2b1f] mb-4 mt-1">
-            Contacto Directo
-          </h3>
-          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 text-xs text-[#5c4a38]">
-            <a 
-              href="tel:5573589465" 
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 border border-white/70 hover:bg-white transition-all"
-            >
-              📞 <span>55 7358 9465</span>
-            </a>
-            <a 
-              href="mailto:ventas@e-aura.com.mx" 
-              className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/50 border border-white/70 hover:bg-white transition-all"
-            >
-              ✉️ <span>ventas@e-aura.com.mx</span>
-            </a>
-          </div>
-        </section>
-
-        {/* SECCIÓN REDES SOCIALES */}
-        <section className="my-6 text-center bg-white/45 backdrop-blur-md rounded-2xl p-6 border border-white/70 max-w-xl mx-auto shadow-sm">
-          <h3 className="font-[var(--font-cinzel)] text-xs md:text-sm tracking-[0.2em] uppercase text-[#3d2b1f] mb-2 font-bold">
-            Búscanos en nuestras redes sociales
-          </h3>
-          <p className="text-xs text-[#5c4a38] mb-4">
-            Descubre nuestras últimas creaciones, proceso artesanal y novedades.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <a
-              href="https://www.facebook.com/share/1BHy6xB8e7/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs px-4 py-2 rounded-full bg-white/50 hover:bg-white text-[#3d2b1f] font-[var(--font-cinzel)] border border-[#c9b596]/40 transition-all shadow-sm"
-            >
-              Facebook
-            </a>
-            <a
-              href="https://www.instagram.com/laylashop_e?igsh=MW1nZmlsaG13NHZzNQ=="
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs px-4 py-2 rounded-full bg-white/50 hover:bg-white text-[#3d2b1f] font-[var(--font-cinzel)] border border-[#c9b596]/40 transition-all shadow-sm"
-            >
-              Instagram
-            </a>
-            <a
-              href="https://www.tiktok.com/@lyla.lyla385?_r=1&_t=ZS-98q3FUASibl"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs px-4 py-2 rounded-full bg-white/50 hover:bg-white text-[#3d2b1f] font-[var(--font-cinzel)] border border-[#c9b596]/40 transition-all shadow-sm"
-            >
-              TikTok
-            </a>
-          </div>
         </section>
 
         {/* PIE DE PÁGINA */}
