@@ -699,7 +699,7 @@ export default function Home() {
                   </a>
                 </li>
                 <li className="flex items-center justify-center md:justify-start gap-2 text-[11px] text-[#7a5c29]">
-                  <span>🕒 Atención: Lun a Dom - 9:00 AM a 7:00 PM</span>
+                  <span>🕒 Atención: Lun a Sáb - 9:00 AM a 7:00 PM</span>
                 </li>
               </ul>
             </div>
