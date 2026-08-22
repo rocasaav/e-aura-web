@@ -1,835 +1,1503 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
-import Image from 'next/image';
+
+
+import { useEffect, useState, Suspense } from 'react';
+
+import { useSearchParams } from 'next/navigation';
+
 import Link from 'next/link';
+
+import Image from 'next/image';
+
 import { supabase } from '@/lib/supabase';
-import { useCart } from '@/context/CartContext';
 
-// --- INTERFACES ---
+import { getOrCreateSessionToken } from '@/lib/session';
 
-interface Category {
-  id: number;
-  name: string;
-}
+
 
 interface Product {
+
   id: number;
-  category_ids: number[];
+
   name: string;
-  slug?: string;
-  description: string;
+
+  commentary: string;
+
   price: number;
-  wax_type: string;
-  aroma: string;
-  dimensions: string;
+
+  images?: string[];
+
   image_url: string;
-  images: string[];
-  is_available: boolean;
+
+  mask_image_url?: string | null;
+
 }
 
-interface ProductWaxAromaQueryResult {
-  layer_number?: number;
-  wax_types?: { name: string } | null;
-  aromas?: { name: string } | null;
-}
 
-interface ProductCategoryQueryResult {
-  category_id: number;
-}
 
-interface ProductQueryResult {
-  id: number;
-  name: string;
-  slug?: string;
-  commentary?: string;
-  price: number;
-  dimensions?: string;
-  images?: string[] | null;
-  is_available: boolean;
-  product_categories?: ProductCategoryQueryResult[];
-  product_wax_aromas?: ProductWaxAromaQueryResult[];
-}
+interface SavedCustomization {
 
-interface ProductImageCarouselProps {
-  mainImage: string;
-  images?: string[] | null;
+  id: string;
+
+  productId: number;
+
   productName: string;
-  onImageClick?: (images: string[], initialIndex: number) => void;
+
+  color: string;
+
+  colorHex: string;
+
+  aroma: string;
+
+  quantity: number;
+
+  unitPrice: number;
+
+  total: number;
+
+  maskImageUrl?: string;
+
+  imageUrl: string;
+
 }
 
-// --- COMPONENTE CARRUSEL ---
 
-function ProductImageCarousel({
-  mainImage,
-  images,
-  productName,
-  onImageClick,
-}: ProductImageCarouselProps) {
-  const imageList = images && images.length > 0 ? images : [mainImage];
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const touchStartX = useRef<number | null>(null);
 
-  const prevImage = (e?: React.MouseEvent | React.TouchEvent) => {
-    if (e) e.stopPropagation();
-    setCurrentIndex((prev) => (prev === 0 ? imageList.length - 1 : prev - 1));
-  };
+interface ColorState {
 
-  const nextImage = (e?: React.MouseEvent | React.TouchEvent) => {
-    if (e) e.stopPropagation();
-    setCurrentIndex((prev) => (prev === imageList.length - 1 ? 0 : prev + 1));
-  };
+  name: string;
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
+  hex: string;
 
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
-    if (touchStartX.current === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const swipeDistance = touchStartX.current - touchEndX;
-    const minSwipeDistance = 40;
+  bodyGradient: string;
 
-    if (swipeDistance > minSwipeDistance) {
-      nextImage();
-    } else if (swipeDistance < -minSwipeDistance) {
-      prevImage();
-    }
-    touchStartX.current = null;
-  };
+  topWax: string;
 
-  return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      className="w-full h-64 overflow-hidden rounded-xl mb-4 border border-[#e8ded1] bg-[#fdfbf7] relative shadow-inner group flex items-center justify-center p-2 select-none touch-pan-y cursor-zoom-in"
-      onClick={() => onImageClick && onImageClick(imageList, currentIndex)}
-    >
-      <div className="relative w-full h-full">
-        <Image
-          src={imageList[currentIndex] || '/placeholder.png'}
-          alt={`${productName} - Vista ${currentIndex + 1}`}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          className="object-contain transition-all duration-300"
-          priority={currentIndex === 0}
-        />
-      </div>
+  shadowColor: string;
 
-      {imageList.length > 1 && (
-        <>
-          <button
-            type="button"
-            onClick={prevImage}
-            className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
-            aria-label="Imagen anterior"
-          >
-            ❮
-          </button>
-
-          <button
-            type="button"
-            onClick={nextImage}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/75 hover:bg-[#3d2b1f] text-white p-2.5 rounded-full backdrop-blur-sm transition-opacity duration-200 text-xs z-10 shadow-md active:scale-95 md:opacity-80 md:group-hover:opacity-100"
-            aria-label="Siguiente imagen"
-          >
-            ❯
-          </button>
-
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 bg-[#3d2b1f]/50 backdrop-blur-sm px-3 py-1.5 rounded-full z-10 items-center">
-            {imageList.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCurrentIndex(idx);
-                }}
-                className="p-1 focus:outline-none"
-                aria-label={`Ir a la imagen ${idx + 1}`}
-              >
-                <span
-                  className={`block rounded-full transition-all duration-300 ${
-                    currentIndex === idx ? 'bg-white w-3 h-1.5' : 'bg-white/50 w-1.5 h-1.5'
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
 }
 
-// --- VISTA PRINCIPAL ---
 
-export default function Home() {
-  const { cartItems, totalItems, totalPrice, setIsCartOpen, addToCart } = useCart();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [mounted, setMounted] = useState(false);
+const PRESET_COLORS: ColorState[] = [
 
-  const [lightboxData, setLightboxData] = useState<{
-    images: string[];
-    index: number;
-    title: string;
-  } | null>(null);
+  { name: 'Blanco Marfil', hex: '#fdfbf7', bodyGradient: 'from-[#ffffff] via-[#fdfbf7] to-[#f3ebd9]', topWax: '#ffffff', shadowColor: 'rgba(226, 213, 195, 0.3)' },
 
-  const whatsappNumber = '5573589465';
+  { name: 'Amarillo Mantequilla', hex: '#fef08a', bodyGradient: 'from-[#fffbeb] via-[#fef08a] to-[#fde047]', topWax: '#fef9c3', shadowColor: 'rgba(254, 240, 138, 0.4)' },
 
-  useEffect(() => {
-    setMounted(true);
-    const savedFavorites = localStorage.getItem('e_aura_favorites');
-    if (savedFavorites) {
-      try {
-        setFavorites(JSON.parse(savedFavorites));
-      } catch (e) {
-        console.error('Error al cargar favoritos de localStorage:', e);
+  { name: 'Naranja Melocotón Pastel', hex: '#ffedd5', bodyGradient: 'from-[#fff7ed] via-[#ffedd5] to-[#fed7aa]', topWax: '#fff1f2', shadowColor: 'rgba(255, 237, 213, 0.4)' },
+
+  { name: 'Azul Cielo Pastel', hex: '#bae6fd', bodyGradient: 'from-[#f0f9ff] via-[#bae6fd] to-[#7dd3fc]', topWax: '#e0f2fe', shadowColor: 'rgba(186, 230, 253, 0.35)' },
+
+  { name: 'Rosa Peonía', hex: '#f4c2c2', bodyGradient: 'from-[#fce4e4] via-[#f4c2c2] to-[#e89b9b]', topWax: '#fbe3e3', shadowColor: 'rgba(244, 194, 194, 0.35)' },
+
+  { name: 'Rojo Coral Pastel', hex: '#fca5a5', bodyGradient: 'from-[#fef2f2] via-[#fca5a5] to-[#f87171]', topWax: '#fee2e2', shadowColor: 'rgba(252, 165, 165, 0.35)' },
+
+  { name: 'Verde Menta Pastel', hex: '#b8e0d2', bodyGradient: 'from-[#e2f3ec] via-[#b8e0d2] to-[#8ebfbe]', topWax: '#d8f0e7', shadowColor: 'rgba(184, 224, 210, 0.35)' },
+
+  { name: 'Lavanda Silvestre', hex: '#d3c5e5', bodyGradient: 'from-[#eee7f6] via-[#d3c5e5] to-[#b29ccf]', topWax: '#e7def2', shadowColor: 'rgba(211, 197, 229, 0.35)' },
+
+  { name: 'Arena / Lino', hex: '#e2d5c3', bodyGradient: 'from-[#f3ede3] via-[#e2d5c3] to-[#ccb9a3]', topWax: '#efe7dc', shadowColor: 'rgba(226, 213, 195, 0.4)' }
+
+];
+
+
+
+function createCustomColorState(hex: string): ColorState {
+
+  return {
+
+    name: `Personalizado (${hex})`,
+
+    hex,
+
+    bodyGradient: '',
+
+    topWax: hex,
+
+    shadowColor: `${hex}55`,
+
+  };
+
+}
+
+
+
+function PersonalizerContent() {
+
+  const searchParams = useSearchParams();
+
+  const productId = searchParams.get('id');
+
+
+
+  const [product, setProduct] = useState<Product | null>(null);
+
+  const [favoriteProducts, setFavoriteProducts] = useState<Product[]>([]);
+
+  const [aromasList, setAromasList] = useState<{ id: number; name: string }[]>([]);
+
+  const [loading, setLoading] = useState<boolean>(true);
+
+
+
+  const [selectedColor, setSelectedColor] = useState<ColorState>(PRESET_COLORS[0]);
+
+  const [isCustomColor, setIsCustomColor] = useState<boolean>(false);
+
+  const [selectedAroma, setSelectedAroma] = useState<string>('');
+
+  const [quantity, setQuantity] = useState<number>(1);
+
+  const [customizations, setCustomizations] = useState<SavedCustomization[]>([]);
+
+  const [savedMessage, setSavedMessage] = useState<boolean>(false);
+
+
+
+  // Modal de contacto
+
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+
+  const [customerName, setCustomerName] = useState<string>('');
+
+  const [customerPhone, setCustomerPhone] = useState<string>('');
+
+  const [customerEmail, setCustomerEmail] = useState<string>('');
+
+
+
+  const fetchAromasForProduct = async (pId: number) => {
+
+    try {
+
+      const { data: relAromas, error } = await supabase
+
+        .from('product_wax_aromas')
+
+        .select('aromas(id, name)')
+
+        .eq('product_id', pId);
+
+
+
+      let fetchedAromas: { id: number; name: string }[] = [];
+
+
+
+      if (!error && relAromas && relAromas.length > 0) {
+
+        const mapped = relAromas.map((item: any) => item.aromas).filter(Boolean);
+
+        fetchedAromas = Array.from(
+
+          new Map(mapped.map((a: { id: number; name: string }) => [a.id, a])).values()
+
+        );
+
       }
+
+
+
+      if (fetchedAromas.length === 0) {
+
+        const { data: allAromas } = await supabase
+
+          .from('aromas')
+
+          .select('id, name')
+
+          .order('name', { ascending: true });
+
+        fetchedAromas = allAromas || [];
+
+      }
+
+
+
+      setAromasList(fetchedAromas);
+
+      setSelectedAroma(fetchedAromas.length > 0 ? fetchedAromas[0].name : 'Neutro');
+
+    } catch (err) {
+
+      console.error('Error al cargar aromas:', err);
+
     }
-  }, []);
 
-  const toggleFavorite = (productId: number) => {
-    setFavorites((prev) => {
-      const updated = prev.includes(productId)
-        ? prev.filter((id) => id !== productId)
-        : [...prev, productId];
-
-      localStorage.setItem('e_aura_favorites', JSON.stringify(updated));
-      return updated;
-    });
   };
 
+
+
   useEffect(() => {
+
     async function fetchData() {
+
       setLoading(true);
-      setErrorMessage(null);
+
       try {
-        const [catResult, prodResult] = await Promise.all([
-          supabase.from('categories').select('id, name').order('name', { ascending: true }),
-          supabase
-            .from('products')
-            .select(`
-              id,
-              name,
-              slug,
-              commentary,
-              price,
-              dimensions,
-              images,
-              is_available,
-              product_categories ( category_id ),
-              product_wax_aromas (
-                layer_number,
-                wax_types:wax_type_id ( name ),
-                aromas:aroma_id ( name )
-              )
-            `)
-            .eq('is_available', true)
-        ]);
 
-        if (catResult.error) throw catResult.error;
-        if (prodResult.error) throw prodResult.error;
+        await getOrCreateSessionToken();
 
-        if (catResult.data) setCategories(catResult.data);
 
-        if (prodResult.data) {
-          const formattedProducts: Product[] = (prodResult.data as unknown as ProductQueryResult[]).map((prod) => {
-            const waxTypes = prod.product_wax_aromas
-              ?.map((item) => item.wax_types?.name)
-              .filter((name): name is string => Boolean(name));
 
-            const aromas = prod.product_wax_aromas
-              ?.map((item) => item.aromas?.name)
-              .filter((name): name is string => Boolean(name));
+        const { data: catalogData } = await supabase
 
-            const categoryIds = prod.product_categories
-              ?.map((pc) => pc.category_id)
-              .filter(Boolean) || [];
+          .from('products')
 
-            const imageList = prod.images && prod.images.length > 0 ? prod.images : ['/placeholder.png'];
+          .select('id, name, commentary, price, images, mask_image_url, is_available')
+
+          .eq('is_available', true);
+
+
+
+        let formattedCatalog: Product[] = [];
+
+        if (catalogData) {
+
+          formattedCatalog = catalogData.map((p) => {
+
+            let img = '/placeholder-candle.jpg';
+
+            if (Array.isArray(p.images) && p.images.length > 0) img = p.images[0];
 
             return {
-              id: prod.id,
-              category_ids: categoryIds,
-              name: prod.name,
-              slug: prod.slug,
-              description: prod.commentary || 'Vela artesanal personalizada hecha con insumos naturales de alta calidad.',
-              price: Number(prod.price) || 0,
-              wax_type: waxTypes?.length ? Array.from(new Set(waxTypes)).join(', ') : 'Cera Artesanal',
-              aroma: aromas?.length ? Array.from(new Set(aromas)).join(', ') : 'Aroma Natural',
-              dimensions: prod.dimensions || 'N/A',
-              image_url: imageList[0],
-              images: imageList,
-              is_available: prod.is_available,
+
+              id: Number(p.id),
+
+              name: p.name,
+
+              commentary: p.commentary || '',
+
+              price: Number(p.price),
+
+              images: Array.isArray(p.images) ? p.images : [],
+
+              image_url: img,
+
+              mask_image_url: p.mask_image_url || null,
+
             };
+
           });
 
-          setProducts(formattedProducts);
         }
-      } catch (err: unknown) {
-        console.error('Error al consultar Supabase:', err);
-        setErrorMessage('No se pudieron cargar los productos. Por favor intenta de nuevo.');
+
+
+
+        const favsRaw = localStorage.getItem('e_aura_favorites');
+
+        const favIds: number[] = favsRaw ? JSON.parse(favsRaw) : [];
+
+
+
+        const userFavProducts = formattedCatalog.filter((p) => favIds.includes(p.id));
+
+        setFavoriteProducts(userFavProducts);
+
+
+
+        const parsedId = productId ? Number(productId) : null;
+
+        let currentProduct: Product | null = null;
+
+
+
+        if (parsedId) {
+
+          currentProduct = formattedCatalog.find((item) => item.id === parsedId) || null;
+
+        }
+
+
+
+        if (!currentProduct && userFavProducts.length > 0) {
+
+          currentProduct = userFavProducts[0];
+
+        } else if (!currentProduct && formattedCatalog.length > 0) {
+
+          currentProduct = formattedCatalog[0];
+
+        }
+
+
+
+        setProduct(currentProduct);
+
+
+
+        if (currentProduct) {
+
+          await fetchAromasForProduct(currentProduct.id);
+
+        }
+
+
+
+        const savedCustomsRaw = localStorage.getItem('eaura_customizations');
+
+        if (savedCustomsRaw) {
+
+          setCustomizations(JSON.parse(savedCustomsRaw));
+
+        }
+
+
+
+      } catch (err) {
+
+        console.error('Error al cargar datos:', err);
+
       } finally {
+
         setLoading(false);
+
       }
+
     }
 
+
+
     fetchData();
-  }, []);
 
-  // --- FUNCIONALIDADES DE COTIZACIÓN DE PRODUCTO INDIVIDUAL Y CARRITO COMPLETO ---
+  }, [productId]);
 
-  const handleWhatsAppQuote = (productName: string) => {
-    const message = encodeURIComponent(
-      `¡Hola E-Aura! Me interesa cotizar el producto: ${productName}. ¿Podrían darme más información?`
+
+
+  useEffect(() => {
+
+    localStorage.setItem('eaura_customizations', JSON.stringify(customizations));
+
+  }, [customizations]);
+
+
+
+  const handleSelectProduct = (selectedProd: Product) => {
+
+    setProduct(selectedProd);
+
+    fetchAromasForProduct(selectedProd.id);
+
+  };
+
+
+
+  const handleSaveConfiguration = () => {
+
+    if (!product) return;
+
+
+
+    const uniqueId = `${product.id}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+
+
+
+    const newConfig: SavedCustomization = {
+
+      id: uniqueId,
+
+      productId: product.id,
+
+      productName: product.name,
+
+      color: selectedColor.name || 'Blanco Marfil',
+
+      colorHex: selectedColor.hex,
+
+      aroma: selectedAroma || 'Neutro',
+
+      quantity: quantity,
+
+      unitPrice: product.price,
+
+      total: product.price * quantity,
+
+      maskImageUrl: product.mask_image_url || undefined,
+
+      imageUrl: product.image_url,
+
+    };
+
+
+
+    setCustomizations((prev) => [...prev, newConfig]);
+
+    setSavedMessage(true);
+
+    setTimeout(() => setSavedMessage(false), 2500);
+
+    setQuantity(1);
+
+  };
+
+
+
+  const handleUpdateItemQuantity = (id: string, delta: number) => {
+
+    setCustomizations((prev) =>
+
+      prev
+
+        .map((item) => {
+
+          if (item.id === id) {
+
+            const newQty = item.quantity + delta;
+
+            return newQty <= 0 ? null : { ...item, quantity: newQty, total: newQty * item.unitPrice };
+
+          }
+
+          return item;
+
+        })
+
+        .filter((item): item is SavedCustomization => item !== null)
+
     );
-    window.open(`https://wa.me/${whatsappNumber}?text=${message}`, '_blank');
+
   };
 
-  const handleWhatsAppCartQuote = () => {
-    if (!cartItems || cartItems.length === 0) return;
-    
-    let text = `¡Hola E-Aura! Quisiera solicitar una cotización para el siguiente pedido:\n\n`;
-    cartItems.forEach((item, index) => {
-      text += `${index + 1}. *${item.name}* (x${item.quantity}) - $${(item.price * item.quantity).toFixed(2)} MXN\n`;
+
+
+  const handleClearAll = () => {
+
+    setCustomizations([]);
+
+    localStorage.removeItem('eaura_customizations');
+
+  };
+
+
+
+  const totalPiecesCount = customizations.reduce((acc, item) => acc + item.quantity, 0);
+
+  const totalAmountSum = customizations.reduce((acc, item) => acc + item.total, 0);
+
+
+
+  const handleSendWhatsApp = (e: React.FormEvent) => {
+
+    e.preventDefault();
+
+    if (!customerName || !customerPhone) return;
+
+
+
+    const storePhoneNumber = '5573589465'; // Ajustar número oficial
+
+
+
+    let message = `✨ *NUEVO PEDIDO DE E-AURA* ✨\n\n`;
+
+    message += `👤 *Cliente:* ${customerName}\n`;
+
+    message += `📱 *Teléfono:* ${customerPhone}\n`;
+
+    if (customerEmail) message += `📧 *Correo:* ${customerEmail}\n`;
+
+    message += `\n--------------------------------\n`;
+
+    message += `🕯️ *DETALLE DEL PEDIDO:*\n\n`;
+
+
+
+    customizations.forEach((item, index) => {
+
+      message += `${index + 1}. *${item.productName}*\n`;
+
+      message += `   • Color: ${item.color}\n`;
+
+      message += `   • Aroma: ${item.aroma}\n`;
+
+      message += `   • Cantidad: ${item.quantity} pz(s) x $${item.unitPrice.toFixed(2)}\n`;
+
+      message += `   • Subtotal: $${item.total.toFixed(2)} MXN\n\n`;
+
     });
-    text += `\n*Total estimado:* $${totalPrice.toFixed(2)} MXN\n\n¿Podrían apoyarme con el seguimiento?`;
 
-    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank');
+
+
+    message += `--------------------------------\n`;
+
+    message += `📦 *TOTAL PIEZAS:* ${totalPiecesCount}\n`;
+
+    message += `💰 *TOTAL A PAGAR:* $${totalAmountSum.toFixed(2)} MXN\n\n`;
+
+    message += `¡Hola! Me gustaría confirmar este pedido personalizado. Gracias.`;
+
+
+
+    const encodedMessage = encodeURIComponent(message);
+
+    window.open(`https://wa.me/${storePhoneNumber}?text=${encodedMessage}`, '_blank');
+
+    setIsModalOpen(false);
+
   };
 
-  const handleDownloadCartPDF = () => {
-    if (!cartItems || cartItems.length === 0) return;
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
 
-    const itemsHtml = cartItems.map((item, idx) => `
-      <tr style="border-bottom: 1px solid #eee;">
-        <td style="padding: 8px;">${idx + 1}</td>
-        <td style="padding: 8px;">${item.name}</td>
-        <td style="padding: 8px; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; text-align: right;">$${item.price.toFixed(2)} MXN</td>
-        <td style="padding: 8px; text-align: right;">$${(item.price * item.quantity).toFixed(2)} MXN</td>
-      </tr>
-    `).join('');
+  if (loading) {
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Cotización E-Aura</title>
-          <style>
-            body { font-family: sans-serif; padding: 20px; color: #3d2b1f; }
-            h1 { color: #5a3e2b; margin-bottom: 5px; }
-            table { w-full; width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background-color: #fdfbf7; border-bottom: 2px solid #c9b596; padding: 8px; text-align: left; }
-            .total { text-align: right; font-size: 16px; font-weight: bold; margin-top: 20px; }
-            .footer { margin-top: 40px; font-size: 12px; color: #7a5c29; text-align: center; }
-          </style>
-        </head>
-        <body>
-          <h1>E-Aura - Cotización de Pedido</h1>
-          <p>Fecha: ${new Date().toLocaleDateString('es-MX')}</p>
-          <hr />
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Producto</th>
-                <th style="text-align: center;">Cant.</th>
-                <th style="text-align: right;">Precio Unit.</th>
-                <th style="text-align: right;">Subtotal</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${itemsHtml}
-            </tbody>
-          </table>
-          <div class="total">
-            Total Estimado: $${totalPrice.toFixed(2)} MXN
-          </div>
-          <div class="footer">
-            <p>Velas Artesanales & Recuerdos Hechos a Mano</p>
-            <p>Contacto: contacto@e-aura.com.mx | WhatsApp: +52 55 7358 9465</p>
-          </div>
-          <script>
-            window.onload = function() { window.print(); };
-          </script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
+    return (
 
-  const filteredProducts = useMemo(() => {
-    return products.filter((product) => {
-      const matchesCategory = selectedCategory
-        ? product.category_ids?.includes(selectedCategory)
-        : true;
+      <div className="text-center py-20 font-[var(--font-cinzel)] text-[#a3685e]">
 
-      const matchesSearch =
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.aroma?.toLowerCase().includes(searchQuery.toLowerCase());
+        <p className="animate-pulse tracking-widest uppercase text-xs">Cargando personalizador...</p>
 
-      return matchesCategory && matchesSearch;
-    });
-  }, [products, selectedCategory, searchQuery]);
+      </div>
+
+    );
+
+  }
+
+
+
+  if (!product) {
+
+    return (
+
+      <div className="text-center py-20 font-[var(--font-cinzel)] space-y-4">
+
+        <p className="text-sm text-[#8c5349]">No tienes ningún producto seleccionado en tus favoritos.</p>
+
+        <Link href="/" className="inline-block text-xs bg-gradient-to-r from-[#a3685e] to-[#8c5349] text-white px-6 py-3 rounded-full shadow-md hover:opacity-90 transition-all font-semibold tracking-wider">
+
+          Ir al catálogo
+
+        </Link>
+
+      </div>
+
+    );
+
+  }
+
+
 
   return (
-    <main
-      className="min-h-screen text-[#4a3b2c] relative font-[var(--font-montserrat)] flex flex-col justify-between bg-cover bg-center bg-fixed"
-      style={{ backgroundImage: "url('/bg-texture.png')" }}
-    >
-      <div className="absolute inset-0 bg-[#fdfbf7]/30 pointer-events-none" />
-      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 md:px-8 py-6 flex flex-col min-h-screen justify-between">
-        
-        {/* ENCABEZADO */}
-        <header className="border border-[#7a5c29]/20 backdrop-blur-md rounded-2xl px-4 py-3 bg-white/50 shadow-sm mb-3">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-3">
-            <div className="text-center md:text-left">
-              <span className="text-[10px] tracking-widest font-serif text-[#7a5c29] uppercase font-semibold block leading-none">
-                Nuestro catálogo
-              </span>
-              <h1 className="font-cursive text-5xl md:text-6xl text-[#5a3e2b] leading-tight my-0">
-                E-Aura
-              </h1>
-            </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
-              <input
-                type="text"
-                placeholder="Buscar diseño o aroma..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full sm:w-60 text-xs px-3 py-1.5 rounded-full bg-white/70 backdrop-blur-sm border border-[#c9b596]/60 focus:outline-none focus:ring-2 focus:ring-[#7a5c29]/40 text-[#3d2b1f]"
-              />
+    <>
 
-              <Link
-                href="/mis-favoritos"
-                onClick={(e) => {
-                  if (!mounted || favorites.length === 0) {
-                    e.preventDefault();
-                  }
-                }}
-                aria-disabled={!mounted || favorites.length === 0}
-                className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-serif transition-all shadow-sm border border-[#3d2b1f] ${
-                  mounted && favorites.length > 0
-                    ? 'bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white active:scale-95 cursor-pointer'
-                    : 'bg-[#5a3e2b]/50 text-white/60 border-[#3d2b1f]/40 opacity-50 cursor-not-allowed pointer-events-none'
-                }`}
-              >
-                <span className={mounted && favorites.length > 0 ? 'text-rose-400' : 'text-gray-300'}>♥</span>
-                <span>Mis Me Gusta</span>
-                {mounted && favorites.length > 0 && (
-                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
-                    {favorites.length}
-                  </span>
-                )}
-              </Link>
+      {/* VISTA WEB HABITUAL (se oculta automáticamente al imprimir) */}
 
-              <button
-                type="button"
-                onClick={() => setIsCartOpen(true)}
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white font-[var(--font-cinzel)] transition-all shadow-sm active:scale-95 border border-[#3d2b1f] relative cursor-pointer"
-              >
-                <span>🛒 Carrito</span>
-                {totalItems > 0 && (
-                  <span className="bg-[#c9b596] text-[#2d1f15] text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
-                    {totalItems}
-                  </span>
-                )}
-              </button>
-            </div>
+      <div className="print:hidden max-w-5xl mx-auto space-y-6 pb-12">
+
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+
+          <div>
+
+            <span className="text-[10px] tracking-widest font-[var(--font-cinzel)] text-[#a3685e] uppercase font-bold block mb-1">
+
+              Personalizando tu selección
+
+            </span>
+
+            <h1 className="font-[var(--font-cinzel)] text-3xl font-bold text-[#4a3531] leading-tight">
+
+              {product.name}
+
+            </h1>
+
           </div>
 
-          <nav className="flex flex-wrap items-center justify-center gap-1.5 pt-2 mt-2 border-t border-[#7a5c29]/15 pb-1">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory(null)}
-              className={`text-xs px-3 py-0.5 rounded-full font-[var(--font-cinzel)] transition-all ${
-                selectedCategory === null
-                  ? 'bg-[#c9b596] text-[#2d1f15] shadow-md font-bold border border-[#b39e7d]'
-                  : 'bg-white/40 text-[#5c4a38] hover:bg-white/70'
-              }`}
-            >
-              Todas
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => setSelectedCategory(cat.id)}
-                className={`text-xs px-3 py-0.5 rounded-full font-[var(--font-cinzel)] transition-all ${
-                  selectedCategory === cat.id
-                    ? 'bg-[#F1E7FD] text-[#2d1f15] shadow-md font-bold border border-[#b39e7d]'
-                    : 'bg-white/40 text-[#5c4a38] hover:bg-white/70'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </nav>
-        </header>
 
-        {/* BARRA DE ACCIÓN RÁPIDA DE COTIZACIÓN DEL CARRITO COMPLETO */}
-        {cartItems && cartItems.length > 0 && (
-          <div className="mb-4 p-3 bg-white/70 backdrop-blur-md rounded-2xl border border-[#c9b596]/60 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="text-xs text-[#3d2b1f]">
-              <span className="font-bold">🛒 Carrito ({totalItems} productos):</span> ${totalPrice.toFixed(2)} MXN
-            </div>
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={handleWhatsAppCartQuote}
-                className="flex-1 sm:flex-none text-xs px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95"
-              >
-                <span>💬 Cotizar Carrito (WhatsApp)</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadCartPDF}
-                className="flex-1 sm:flex-none text-xs px-3 py-1.5 rounded-xl bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white font-bold transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95"
-              >
-                <span>📄 Descargar PDF</span>
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* CINTILLA CENTRAL */}
-        <div className="my-3 text-center">
-          <p className="font-serif text-xs md:text-sm tracking-[0.18em] text-[#5a3e2b] uppercase bg-[#fdfbf7]/70 backdrop-blur-md inline-block px-6 py-2 rounded-full border border-[#c9b596]/40 shadow-sm">
-            Velas Artesanales <span className="font-cursive text-xl lowercase text-[#7a5c29] tracking-normal px-1">&</span> Recuerdos Hechos a Mano
-          </p>
+          <Link
+
+            href="/"
+
+            className="text-xs bg-white/90 hover:bg-white text-[#8c5349] border border-[#e8d5d1] px-5 py-2.5 rounded-full font-[var(--font-cinzel)] font-semibold transition-all shadow-xs hover:shadow-md backdrop-blur-sm"
+
+          >
+
+            ← Volver al catálogo
+
+          </Link>
+
         </div>
 
-        {/* CATÁLOGO DE PRODUCTOS */}
-        <section className="my-6">
-          {loading ? (
-            <div className="text-center py-16 font-[var(--font-cinzel)] text-[#7a5c29]">
-              <p className="animate-pulse tracking-widest uppercase text-xs">Cargando catálogo...</p>
+
+
+        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 border border-[#f0e4e1] shadow-xs flex flex-col gap-4">
+
+          <div className="flex flex-col md:flex-row items-center gap-5">
+
+            <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-[#e6d3cf] flex-shrink-0 bg-white">
+
+              <Image src={product.image_url} alt={product.name} fill className="object-cover" unoptimized />
+
             </div>
-          ) : errorMessage ? (
-            <div className="text-center py-12 bg-rose-50/80 backdrop-blur-md rounded-2xl border border-rose-200 text-rose-800 text-xs font-[var(--font-cinzel)]">
-              {errorMessage}
+
+
+
+            <div className="flex-1 text-center md:text-left space-y-1 w-full">
+
+              <div className="flex items-center justify-center md:justify-start gap-2">
+
+                <span className="bg-[#f8eeec] text-[#a3685e] text-[10px] uppercase font-bold px-3 py-0.5 rounded-full font-[var(--font-cinzel)] tracking-wider">
+
+                  Asigna la configuración de color y aroma que más te guste.
+
+                </span>
+
+              </div>
+
+              <p className="text-xs text-[#705651] line-clamp-2 leading-relaxed font-normal">
+
+                {product.commentary || 'Vela artesanal moldeada a mano con cera ecológica.'}
+
+              </p>
+
             </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className="text-center py-12 bg-white/40 backdrop-blur-md rounded-2xl border border-white/60 text-[#6b5235]">
-              No se encontraron productos.
+
+
+
+            <div className="text-right flex-shrink-0 md:border-l md:border-[#f0e4e1] md:pl-5 w-full md:w-auto flex md:flex-col justify-between items-center md:items-end">
+
+              <span className="text-[10px] text-[#a3685e] font-[var(--font-cinzel)] uppercase font-semibold tracking-wider">Precio Base</span>
+
+              <span className="font-[var(--font-cinzel)] font-bold text-xl text-[#4a3531]">
+
+                ${product.price.toFixed(2)} <span className="text-xs font-medium text-[#8c5349]">MXN</span>
+
+              </span>
+
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product) => {
-                const isFavorite = favorites.includes(product.id);
 
-                return (
-                  <div
-                    key={product.id}
-                    className="bg-white/50 backdrop-blur-md rounded-2xl p-5 border border-white/80 shadow-md hover:shadow-lg transition-all duration-300 flex flex-col justify-between relative group"
-                  >
-                    <div>
-                      <ProductImageCarousel
-                        mainImage={product.image_url}
-                        images={product.images}
-                        productName={product.name}
-                        onImageClick={(images, initialIndex) =>
-                          setLightboxData({
-                            images,
-                            index: initialIndex,
-                            title: product.name,
-                          })
-                        }
-                      />
-                      <h3 className="font-cursive text-3xl md:text-4xl text-[#3d2b1f] text-center mb-1 leading-snug">
-                        {product.name}
-                      </h3>
-                      <p className="text-xs text-[#5c4a38] text-center mb-3 leading-relaxed">
-                        {product.description}
-                      </p>
-                      <dl className="text-xs text-[#6b5235] space-y-1 mb-4 bg-white/60 p-3 rounded-xl border border-white/70">
-                        <div className="flex gap-1">
-                          <dt className="font-bold text-[#3d2b1f]">Cera:</dt>
-                          <dd>{product.wax_type}</dd>
-                        </div>
-                        <div className="flex gap-1">
-                          <dt className="font-bold text-[#3d2b1f]">Aroma:</dt>
-                          <dd>{product.aroma}</dd>
-                        </div>
-                        <div className="flex gap-1">
-                          <dt className="font-bold text-[#3d2b1f]">Medidas:</dt>
-                          <dd>{product.dimensions}</dd>
-                        </div>
-                      </dl>
-                    </div>
+          </div>
 
-                    <div>
-                      <div className="text-center mb-3">
-                        <span className="font-serif font-bold text-xl text-[#2d1f15]">
-                          ${product.price.toFixed(2)}{' '}
-                          <span className="text-xs font-normal text-[#6b5235]">MXN</span>
-                        </span>
-                      </div>
 
-                      <div className="grid grid-cols-6 gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleWhatsAppQuote(product.name)}
-                          style={{ backgroundImage: "url('/fondoWhatsApp.png')" }}
-                          className="col-span-3 bg-cover bg-center text-[#3d2b1f] font-bold py-2.5 px-2 rounded-xl text-xs transition-all shadow-sm hover:shadow-md flex items-center justify-center gap-1 border border-[#8a6b43]/40 font-[var(--font-cinzel)] tracking-wider hover:brightness-95 active:scale-[0.98]"
-                        >
-                          <svg className="w-4 h-4 fill-current text-[#128C7E]" viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984 0 1.762.459 3.48 1.332 5.001l-1.416 5.17 5.291-1.387c1.464.798 3.118 1.218 4.779 1.219h.004c5.506 0 9.989-4.478 9.99-9.985 0-2.668-1.039-5.177-2.926-7.064c-1.886-1.887-4.394-2.925-7.064-2.925zm5.72 14.181c-.236.666-1.373 1.272-1.912 1.346-.492.068-1.127.098-1.821-.124-.424-.136-.971-.312-1.685-.623-2.977-1.295-4.921-4.303-5.07-4.502-.149-.199-1.21-1.609-1.21-3.07 0-1.46.764-2.18 1.037-2.478.273-.298.596-.372.795-.372.199 0 .398.003.57.011.183.008.428-.069.67.511.248.596.845 2.063.919 2.212.075.149.124.323.025.522-.099.199-.149.323-.298.497-.149.174-.313.389-.447.522-.149.149-.304.312-.131.61.174.298.774 1.278 1.66 2.068 1.14.1 2.046 1.341 2.344 1.54.298.199.472.174.646-.025.174-.199.745-.869.944-1.167.199-.298.398-.248.67-.149.273.099 1.738.82 2.036.969.298.149.497.223.571.348.074.124.074.72-.162 1.386z"/>
-                          </svg>
-                          <span>Cotizar</span>
-                        </button>
 
-                        <button
-                          type="button"
-                          onClick={() => addToCart && addToCart(product)}
-                          title="Agregar al Carrito"
-                          className="col-span-2 bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white font-bold py-2.5 px-2 rounded-xl text-xs transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 font-[var(--font-cinzel)]"
-                        >
-                          🛒 <span>+</span>
-                        </button>
+          {favoriteProducts.length > 1 && (
 
-                        <button
-                          type="button"
-                          onClick={() => toggleFavorite(product.id)}
-                          title={isFavorite ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}
-                          className={`col-span-1 rounded-xl flex items-center justify-center text-base border transition-all active:scale-90 ${
-                            isFavorite
-                              ? 'bg-rose-100 border-rose-300 text-rose-600 shadow-inner'
-                              : 'bg-white/80 border-[#c9b596]/50 text-gray-400 hover:text-rose-500 hover:bg-white'
-                          }`}
-                        >
-                          {isFavorite ? '♥' : '♡'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="flex items-center gap-2 overflow-x-auto pt-3 border-t border-[#f0e4e1]/80 px-1">
+
+              <span className="text-xs text-[#a3685e] font-bold font-[var(--font-cinzel)] whitespace-nowrap">
+
+                ¡Selecciona un producto y configúralo a tu gusto! :
+
+              </span>
+
+              {favoriteProducts.map((fav) => (
+
+                <button
+
+                  key={fav.id}
+
+                  onClick={() => handleSelectProduct(fav)}
+
+                  className={`text-xs px-4 py-1.5 rounded-full font-[var(--font-cinzel)] whitespace-nowrap transition-all ${
+
+                    product.id === fav.id
+
+                      ? 'bg-[#f4ecfb] text-[#6b3e36] font-semibold border-2 border-[#a3685e] shadow-xs'
+
+                      : 'bg-white/80 text-[#8c6d66] hover:bg-[#fcf5f3] border border-[#eee2de]'
+
+                  }`}
+
+                >
+
+                  {fav.name}
+
+                </button>
+
+              ))}
+
             </div>
+
           )}
-        </section>
 
-        {/* MODAL LIGHTBOX CON CARRUSEL INTEGRADO */}
-        {lightboxData && (
-          <div
-            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 transition-opacity duration-300 select-none"
-            onClick={() => setLightboxData(null)}
-          >
-            <div
-              className="relative max-w-4xl max-h-[92vh] w-full flex flex-col items-center justify-center bg-[#fdfbf7] rounded-2xl overflow-hidden border border-[#c9b596]/40 shadow-2xl p-4 md:p-6"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={() => setLightboxData(null)}
-                className="absolute top-3 right-3 bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white w-9 h-9 rounded-full flex items-center justify-center shadow-md border border-[#c9b596]/50 text-sm font-bold z-20 transition-transform active:scale-90 cursor-pointer"
-                aria-label="Cerrar vista ampliada"
+        </div>
+
+
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+
+          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs flex flex-col items-center justify-center relative">
+
+            <div className="bg-[#fffcfb] border border-[#f0e4e1] rounded-xl p-4 w-full flex flex-col items-center justify-center relative h-96 shadow-inner overflow-hidden">
+
+              <div className="relative w-48 h-64 flex justify-center items-end my-4">
+
+                <div className="absolute top-2 z-30 flex items-center justify-center">
+
+                  <svg width="44" height="64" viewBox="0 0 44 64" fill="none" className="drop-shadow-xs">
+
+                    <defs>
+
+                      <linearGradient id="flameOuterGrad" x1="22" y1="4" x2="22" y2="60" gradientUnits="userSpaceOnUse">
+
+                        <stop offset="0%" stopColor="#fef08a" />
+
+                        <stop offset="50%" stopColor="#f97316" />
+
+                        <stop offset="100%" stopColor="#ea580c" />
+
+                      </linearGradient>
+
+                      <linearGradient id="flameInnerGrad" x1="22" y1="22" x2="22" y2="50" gradientUnits="userSpaceOnUse">
+
+                        <stop offset="0%" stopColor="#ffffff" />
+
+                        <stop offset="100%" stopColor="#fde047" />
+
+                      </linearGradient>
+
+                    </defs>
+
+                    <path d="M 22 4 C 22 4, 38 30, 38 42 C 38 52 31 60 22 60 C 13 60 6 52 6 42 C 6 30, 22 4, 22 4 Z" fill="url(#flameOuterGrad)" stroke="#111111" strokeWidth="3.5" strokeLinejoin="round" />
+
+                    <path d="M 22 22 C 22 22, 30 35, 30 42 C 30 47 26 50 22 50 C 18 50 14 47 14 42 C 14 35, 22 22, 22 22 Z" fill="url(#flameInnerGrad)" stroke="#d97706" strokeWidth="2" strokeLinejoin="round" />
+
+                  </svg>
+
+                </div>
+
+
+
+                <div className="relative w-36 h-48 rounded-b-[2rem] rounded-t-lg flex flex-col items-center justify-end">
+
+                  <div className="absolute top-5 w-[92%] h-7 rounded-[50%] z-20 shadow-inner overflow-hidden border border-white/40 transition-colors duration-300" style={{ backgroundColor: selectedColor.topWax }} />
+
+                  <div
+
+                    className={`w-full h-40 ${isCustomColor ? '' : `bg-gradient-to-br ${selectedColor.bodyGradient}`} rounded-b-[2rem] rounded-t-md shadow-md relative overflow-hidden transition-all duration-300 border border-white/60`}
+
+                    style={{ backgroundColor: isCustomColor ? selectedColor.hex : undefined }}
+
+                  >
+
+                    <div className="absolute top-0 left-3 w-6 h-full bg-gradient-to-r from-white/40 via-white/10 to-transparent blur-[1px]"></div>
+
+                  </div>
+
+                  <div className="absolute -bottom-2 w-32 h-4 rounded-full blur-md -z-10 transition-colors duration-300" style={{ backgroundColor: selectedColor.shadowColor }} />
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+
+          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs space-y-6">
+
+            <div>
+
+              <label className="block text-xs font-bold text-[#4a3531] uppercase tracking-wider font-[var(--font-cinzel)] mb-3">
+
+                1. Elige el color: <span className="normal-case text-[#a3685e] font-medium">({selectedColor.name})</span>
+
+              </label>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+
+                {PRESET_COLORS.map((color) => (
+
+                  <button
+
+                    key={color.name}
+
+                    type="button"
+
+                    onClick={() => { setIsCustomColor(false); setSelectedColor(color); }}
+
+                    style={{ backgroundColor: color.hex }}
+
+                    className={`w-8 h-8 rounded-full border transition-all transform active:scale-90 ${!isCustomColor && selectedColor.name === color.name
+
+                        ? 'border-[#8c5349] scale-110 shadow-sm ring-2 ring-[#a3685e]/30'
+
+                        : 'border-black/10 shadow-2xs hover:scale-105'
+
+                      }`}
+
+                  />
+
+                ))}
+
+
+
+                <div className="relative group">
+
+                  <input
+
+                    type="color"
+
+                    value={selectedColor.hex}
+
+                    onChange={(e) => { setIsCustomColor(true); setSelectedColor(createCustomColorState(e.target.value)); }}
+
+                    className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer z-20"
+
+                  />
+
+                  <div className={`w-8 h-8 rounded-full border-2 border-dashed flex items-center justify-center transition-all ${isCustomColor ? 'border-[#8c5349] bg-white' : 'border-[#a3685e]/50 bg-white/50'}`}>
+
+                    <span className="text-xs">🎨</span>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+
+            <div>
+
+              <label className="block text-xs font-bold text-[#4a3531] uppercase tracking-wider font-[var(--font-cinzel)] mb-2">
+
+                2. Selecciona la esencia / aroma:
+
+              </label>
+
+              <select
+
+                value={selectedAroma}
+
+                onChange={(e) => setSelectedAroma(e.target.value)}
+
+                className="w-full text-xs p-3 rounded-xl bg-white border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/30 shadow-2xs cursor-pointer transition-all"
+
               >
-                ✕
+
+                {aromasList.map((a) => (
+
+                  <option key={a.id} value={a.name}>{a.name}</option>
+
+                ))}
+
+              </select>
+
+            </div>
+
+
+
+            <div className="space-y-3 pt-2">
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex items-center border border-[#e2d0cb] rounded-xl bg-white overflow-hidden shadow-2xs">
+
+                  <button type="button" onClick={() => setQuantity((prev) => Math.max(1, prev - 1))} className="px-3 py-2 text-xs font-bold text-[#4a3531] hover:bg-[#fcf5f3] transition-colors">-</button>
+
+                  <span className="px-3 py-2 text-xs font-bold min-w-[32px] text-center text-[#4a3531]">{quantity}</span>
+
+                  <button type="button" onClick={() => setQuantity((prev) => prev + 1)} className="px-3 py-2 text-xs font-bold text-[#4a3531] hover:bg-[#fcf5f3] transition-colors">+</button>
+
+                </div>
+
+
+
+                <button
+
+                    type="button" onClick={handleSaveConfiguration}
+
+                    className="flex-1 bg-[#F5EEF8] hover:bg-[#EAE0F2] text-[#4A3531] border-2 border-[#9E6B65] hover:border-[#865651] text-xs font-bold py-3 px-4 rounded-full font-[var(--font-cinzel)] tracking-wider transition-all duration-200 shadow-xs hover:shadow-md active:scale-[0.98]"
+
+                  >
+
+                    + Guardar esta configuración
+
+                  </button>
+
+              </div>
+
+            </div>
+
+
+
+            {savedMessage && (
+
+              <p className="text-center text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl font-medium animate-in fade-in">
+
+                ✓ Configuración guardada correctamente en tu lista.
+
+              </p>
+
+            )}
+
+          </div>
+
+        </div>
+
+
+
+        {customizations.length > 0 && (
+
+          <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs space-y-5">
+
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+
+              <h3 className="font-[var(--font-cinzel)] text-sm font-bold text-[#4a3531] uppercase tracking-wider">
+
+                CONFIGURACIONES DE TUS FAVORITOS ({customizations.length}):
+
+              </h3>
+
+
+
+              <button
+
+                    onClick={handleClearAll}
+
+                    className="text-xs bg-[#F5EEF8] hover:bg-[#EAE0F2] text-[#4A3531] border-2 border-[#9E6B65] hover:border-[#865651] px-4 py-2 rounded-full font-[var(--font-cinzel)] font-bold tracking-wider transition-all duration-200 shadow-xs hover:shadow-md active:scale-[0.98]"
+
+                  >
+
+                   ( - ) Borrar todo y limpiar lista
+
               </button>
 
-              <div className="w-full text-center mb-2 px-8">
-                <h4 className="font-cursive text-2xl md:text-3xl text-[#3d2b1f] leading-none">
-                  {lightboxData.title}
-                </h4>
-                {lightboxData.images.length > 1 && (
-                  <span className="text-[11px] font-serif text-[#7a5c29] uppercase tracking-wider block mt-1">
-                    Imagen {lightboxData.index + 1} de {lightboxData.images.length}
-                  </span>
-                )}
-              </div>
-
-              <div className="relative w-full h-[55vh] md:h-[65vh] my-2 flex items-center justify-center">
-                <Image
-                  src={lightboxData.images[lightboxData.index] || '/placeholder.png'}
-                  alt={`${lightboxData.title} ampliado`}
-                  fill
-                  className="object-contain"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1000px"
-                  priority
-                />
-
-                {lightboxData.images.length > 1 && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLightboxData((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                index: prev.index === 0 ? prev.images.length - 1 : prev.index - 1,
-                              }
-                            : null
-                        )
-                      }
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/80 hover:bg-[#3d2b1f] text-white p-3 rounded-full backdrop-blur-sm transition-all text-sm z-10 shadow-lg active:scale-95"
-                      aria-label="Foto anterior"
-                    >
-                      ❮
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setLightboxData((prev) =>
-                          prev
-                            ? {
-                                ...prev,
-                                index: prev.index === prev.images.length - 1 ? 0 : prev.index + 1,
-                              }
-                            : null
-                        )
-                      }
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/80 hover:bg-[#3d2b1f] text-white p-3 rounded-full backdrop-blur-sm transition-all text-sm z-10 shadow-lg active:scale-95"
-                      aria-label="Siguiente foto"
-                    >
-                      ❯
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {lightboxData.images.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto max-w-full py-2 px-1 scrollbar-none items-center">
-                  {lightboxData.images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => setLightboxData((prev) => (prev ? { ...prev, index: idx } : null))}
-                      className={`relative w-12 h-12 md:w-14 md:h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
-                        lightboxData.index === idx
-                          ? 'border-[#7a5c29] scale-105 shadow-md'
-                          : 'border-transparent opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <Image
-                        src={img}
-                        alt={`Miniatura ${idx + 1}`}
-                        fill
-                        loading="eager"
-                        quality={40}
-                        className="object-cover"
-                        sizes="60px"
-                      />
-                    </button>
-                  ))}
-                </div>
-              )}
             </div>
+
+
+
+            <div className="bg-[#FAF5F7]/90 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-[#E8DCE2] shadow-xs space-y-6 font-[var(--font-montserrat)] text-[#4a3531]">
+
+              <div className="flex items-center justify-between border-b border-[#E8DCE2]/80 pb-4">
+
+                <div className="flex items-center gap-2">
+
+                  <span className="text-base">✨</span>
+
+                  <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider text-[#4a3531] font-[var(--font-cinzel)]">
+
+                    Mi pedido
+
+                  </h3>
+
+                </div>
+
+               
+
+              </div>
+
+
+
+              <div className="overflow-x-auto">
+
+                <table className="w-full text-center text-xs border-collapse min-w-[600px]">
+
+                  <thead>
+
+                    <tr className="border-b border-[#E8DCE2] text-[#8c5349] uppercase font-[var(--font-cinzel)] tracking-wider">
+
+                      <th className="py-2.5 px-3 font-bold text-left">Artículo</th>
+
+                      <th className="py-2.5 px-3 font-bold">Color</th>
+
+                      <th className="py-2.5 px-3 font-bold">Aroma</th>
+
+                      <th className="py-2.5 px-3 font-bold">Precio Unidad</th>
+
+                      <th className="py-2.5 px-3 font-bold text-center">Cantidad</th>
+
+                      <th className="py-2.5 px-3 font-bold text-right">Subtotal</th>
+
+                    </tr>
+
+                  </thead>
+
+                  <tbody className="divide-y divide-[#E8DCE2]/50">
+
+                    {customizations.map((item) => (
+
+                      <tr key={item.id} className="hover:bg-white/60 transition-colors">
+
+                        <td className="py-3 px-3 font-bold text-[#4a3531] text-left">{item.productName}</td>
+
+                        <td className="py-3 px-3 font-medium text-[#5c423d]">{item.color}</td>
+
+                        <td className="py-3 px-3 font-medium text-[#5c423d]">{item.aroma}</td>
+
+                        <td className="py-3 px-3 font-semibold text-[#4a3531]">${item.unitPrice.toFixed(2)}</td>
+
+                        <td className="py-3 px-3 text-center">
+
+                          <div className="inline-flex items-center bg-white border border-[#E8DCE2] rounded-lg px-2 py-1 gap-2 font-bold text-[#4a3531] shadow-2xs">
+
+                            <button type="button" onClick={() => handleUpdateItemQuantity(item.id, -1)} className="hover:text-[#a3685e] transition-colors">-</button>
+
+                            <span>{item.quantity} pz</span>
+
+                            <button type="button" onClick={() => handleUpdateItemQuantity(item.id, 1)} className="hover:text-[#a3685e] transition-colors">+</button>
+
+                          </div>
+
+                        </td>
+
+                        <td className="py-3 px-3 font-bold text-[#8c5349] font-[var(--font-cinzel)] text-right">
+
+                          <div className="flex items-center justify-end gap-3">
+
+                            <span>${item.total.toFixed(2)} MXN</span>
+
+                            <button
+
+                              type="button"
+
+                              onClick={() => handleUpdateItemQuantity(item.id, -item.quantity)}
+
+                              className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full transition-all shadow-2xs cursor-pointer active:scale-95 font-[var(--font-montserrat)]"
+
+                            >
+
+                              Elimina
+
+                            </button>
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+
+                    ))}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+ {/* SECCIÓN INFERIOR CON FRASE ALINEADA Y TOTAL ACUMULADO */}
+
+              <div className="pt-4 border-t border-[#E8DCE2]">
+
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+
+                  {/* Frase alineada a la izquierda e integrada al centro vertical del bloque del total */}
+
+                  <p
+
+  className="text-xs italic text-[#705651] font-medium md:max-w-[50%] leading-relaxed"
+
+  style={{ textAlign: 'justify' }}
+
+>
+
+  * Hecho a mano, con amor, solo para ti. Elegiste cada color y aroma con mucho cariño. Ahora nos toca a nosotros crearlas. En E-Aura cada vela es artesanal y única, elaborada una por una. Por ser artesanales, el tono puede variar ligeramente, lo que hace a tu pieza aún más especial. Gracias por confiar tu celebración en nosotros.
+
+</p>
+
+
+
+                  {/* Bloque alineado a la derecha */}
+
+                  <div className="flex flex-col items-end gap-3 w-full md:w-auto">
+
+                    <div className="bg-white/90 border border-[#E8DCE2] px-5 py-2.5 rounded-xl shadow-2xs text-right w-full sm:w-auto min-w-[240px]">
+
+                      <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8c5349] font-[var(--font-cinzel)]">
+
+                        Total Acumulado ({totalPiecesCount} pzas)
+
+                      </span>
+
+                      <span className="text-xl md:text-2xl font-bold text-[#4a3531] tracking-tight font-[var(--font-cinzel)]">
+
+                        ${totalAmountSum.toFixed(2)} <span className="text-xs font-semibold text-[#8c5349]">MXN</span>
+
+                      </span>
+
+                    </div>
+
+
+
+                    <button
+
+                      type="button"
+
+                      onClick={() => setIsModalOpen(true)}
+
+                      className="w-full sm:w-auto bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#20bd5a] hover:to-[#0e7569] text-white text-xs font-bold py-2.5 px-5 rounded-xl font-[var(--font-cinzel)] tracking-wider transition-all shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+
+                    >
+
+                      <span>💬</span> Confirmar y Enviar Pedido por WhatsApp
+
+                    </button>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
+
         )}
 
-        {/* PIE DE PÁGINA */}
-        <footer className="mt-12 border-t border-[#7a5c29]/20 pt-10 pb-6 bg-white/40 backdrop-blur-md rounded-t-3xl border-x border-white/60 shadow-lg px-6 md:px-12 text-[#4a3b2c]">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 text-center md:text-left">
-            <div className="space-y-3">
-              <h2 className="font-cursive text-4xl text-[#5a3e2b] leading-none">E-Aura</h2>
-              <p className="text-xs text-[#6b5235] leading-relaxed font-serif">
-                Velas artesanales de cera natural y recuerdos hechos a mano. Para nosotros, cada cliente es único: si tienes un diseño en mente, dinos cómo lo imaginas y lo creamos especialmente para ti.
-              </p>
-              <div className="text-[11px] font-semibold text-[#7a5c29] font-serif tracking-wider uppercase pt-1">
-                ✨ Hecho con amor en México
+
+
+        {/* MODAL DE DATOS DEL CLIENTE */}
+
+        {isModalOpen && (
+
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+
+            <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full border border-[#e8d5d1] shadow-2xl space-y-5 relative animate-in fade-in zoom-in-95">
+
+              <button
+
+                onClick={() => setIsModalOpen(false)}
+
+                className="absolute top-4 right-4 text-[#8c5349] hover:text-[#4a3531] font-bold text-sm p-1"
+
+              >
+
+                ✕
+
+              </button>
+
+
+
+              <div className="text-center space-y-1">
+
+                <span className="text-2xl">🕯️</span>
+
+                <h3 className="font-[var(--font-cinzel)] text-lg font-bold text-[#4a3531]">
+
+                  Datos de Contacto
+
+                </h3>
+
+                <p className="text-xs text-[#705651]">
+
+                  Por favor ingresa tus datos para personalizar el envío de tu pedido.
+
+                </p>
+
               </div>
-            </div>
 
-            <div className="space-y-3">
-              <h3 className="font-serif text-xs uppercase tracking-widest text-[#3d2b1f] font-bold border-b border-[#c9b596]/40 pb-1.5 inline-block md:block">
-                Contacto & Pedidos
-              </h3>
-              <ul className="space-y-2 text-xs text-[#5c4a38]">
-                <li className="flex items-center justify-center md:justify-start gap-2">
-                  <span className="text-emerald-700 font-bold">📱 Tel / WhatsApp:</span>
-                  <a 
-                    href={`https://wa.me/${whatsappNumber}`} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="hover:underline hover:text-[#3d2b1f] transition-colors"
+
+
+              <form onSubmit={handleSendWhatsApp} className="space-y-4 text-xs font-[var(--font-montserrat)]">
+
+                <div>
+
+                  <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
+
+                    Nombre Completo *
+
+                  </label>
+
+                  <input
+
+                    type="text"
+
+                    required
+
+                    placeholder="Ej. María González"
+
+                    value={customerName}
+
+                    onChange={(e) => setCustomerName(e.target.value)}
+
+                    className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
+
+                  />
+
+                </div>
+
+
+
+                <div>
+
+                  <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
+
+                    Teléfono / WhatsApp *
+
+                  </label>
+
+                  <input
+
+                    type="tel"
+
+                    required
+
+                    placeholder="Ej. 55 1234 5678"
+
+                    value={customerPhone}
+
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+
+                    className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
+
+                  />
+
+                </div>
+
+
+
+                <div>
+
+                  <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
+
+                    Correo Electrónico (Opcional)
+
+                  </label>
+
+                  <input
+
+                    type="email"
+
+                    placeholder="ejemplo@correo.com"
+
+                    value={customerEmail}
+
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+
+                    className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
+
+                  />
+
+                </div>
+
+
+
+                <div className="pt-2 space-y-2">
+
+                  <button
+
+                    type="submit"
+
+                    className="w-full bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-bold py-3 px-4 rounded-xl font-[var(--font-cinzel)] tracking-wider transition-all shadow-md hover:shadow-lg active:scale-[0.98] text-xs"
+
                   >
-                    +52 55 7358 9465
-                  </a>
-                </li>
-                <li className="flex items-center justify-center md:justify-start gap-2">
-                  <span className="text-[#7a5c29] font-bold">✉️ Correo:</span>
-                  <a 
-                    href="mailto:contacto@e-aura.com.mx" 
-                    className="hover:underline hover:text-[#3d2b1f] transition-colors"
+
+                    Enviar Cotización a WhatsApp
+
+                  </button>
+
+
+
+                  <button
+
+                    type="button"
+
+                    onClick={() => window.print()}
+
+                    className="w-full bg-white text-[#8c5349] border border-[#e2d0cb] hover:bg-[#FAF5F7] font-bold py-2.5 px-4 rounded-xl font-[var(--font-cinzel)] transition-all text-xs"
+
                   >
-                    contacto@e-aura.com.mx
-                  </a>
-                </li>
-                <li className="flex items-center justify-center md:justify-start gap-2 text-[11px] text-[#7a5c29]">
-                  <span>🕒 Atención: Lun a Sáb - 9:00 AM a 7:00 PM</span>
-                </li>
-              </ul>
+
+                    🖨️ Imprimir / Guardar Nota en PDF
+
+                  </button>
+
+                </div>
+
+              </form>
+
             </div>
 
-            <div className="space-y-3">
-              <h3 className="font-serif text-xs uppercase tracking-widest text-[#3d2b1f] font-bold border-b border-[#c9b596]/40 pb-1.5 inline-block md:block">
-                Síguenos en Redes
-              </h3>
-              <p className="text-xs text-[#6b5235]">
-                Conoce nuestros nuevos diseños, procesos de elaboración y promociones especiales.
-              </p>
-              
-              <div className="flex justify-center md:justify-start items-center gap-3 pt-1">
-                <a
-                  href="https://www.instagram.com/laylashop_e?igsh=MW1nZmlsaG13NHZzNQ=="
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white/80 hover:bg-[#5a3e2b] hover:text-white text-[#3d2b1f] border border-[#c9b596]/60 p-2 rounded-full transition-all shadow-sm hover:scale-110"
-                  aria-label="Instagram E-Aura"
-                >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
-                  </svg>
-                </a>
-
-                <a
-                  href="https://www.facebook.com/share/1BHy6xB8e7/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white/80 hover:bg-[#5a3e2b] hover:text-white text-[#3d2b1f] border border-[#c9b596]/60 p-2 rounded-full transition-all shadow-sm hover:scale-110"
-                  aria-label="Facebook E-Aura"
-                >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.374 14.5 5 15.5 5H18V0h-3.808C10.592 0 9 1.583 9 4.615V8z" />
-                  </svg>
-                </a>
-
-                <a
-                  href="https://www.tiktok.com/@lyla.lyla385?_r=1&_t=ZS-98q3FUASibl"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white/80 hover:bg-[#5a3e2b] hover:text-white text-[#3d2b1f] border border-[#c9b596]/60 p-2 rounded-full transition-all shadow-sm hover:scale-110"
-                  aria-label="TikTok E-Aura"
-                >
-                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.82.57-1.31 1.56-1.28 2.56.02.82.42 1.61 1.08 2.11.83.65 1.98.81 2.97.43.91-.33 1.61-1.09 1.83-2.03.11-.64.08-1.3-.01-1.94-.02-3.55-.01-7.1-.01-10.65z" />
-                  </svg>
-                </a>
-              </div>
-            </div>
           </div>
 
-          <div className="border-t border-[#7a5c29]/15 pt-4 text-center text-[11px] text-[#6b5235]">
-            <p>© {new Date().getFullYear()} E-Aura. Todos los derechos reservados.</p>
-          </div>
-        </footer>
+        )}
+
       </div>
-    </main>
+
+
+
+      {/* PLANTILLA DE IMPRESIÓN (IMÁGENES 1.5X MÁS GRANDES) */}
+
+      <div className="hidden print:block font-[var(--font-montserrat)] text-[#4a3531] p-8 max-w-4xl mx-auto relative min-h-screen">
+
+        <div
+
+          className="absolute inset-0 opacity-15 pointer-events-none bg-repeat -z-10"
+
+          style={{ backgroundImage: "url('/bg-texture.png')" }}
+
+        />
+
+
+
+        <div className="border-b-2 border-[#8c5349] pb-4 mb-6 flex justify-between items-end">
+
+          <div>
+
+            <h1 className="font-[var(--font-cinzel)] text-2xl font-bold text-[#8c5349]">E-AURA</h1>
+
+            <p className="text-xs uppercase tracking-widest text-[#705651]">Velas Artesanales & Recuerdos</p>
+
+          </div>
+
+          <div className="text-right text-xs">
+
+            <p className="font-bold font-[var(--font-cinzel)]">NOTA DE PEDIDO</p>
+
+            <p className="text-[#705651]">{new Date().toLocaleDateString('es-MX')}</p>
+
+          </div>
+
+        </div>
+
+
+
+        <div className="bg-[#FAF5F7] p-4 rounded-xl border border-[#e2d0cb] mb-6 text-xs space-y-1">
+
+          <p className="font-bold font-[var(--font-cinzel)] text-[#8c5349] uppercase tracking-wider mb-2">DATOS DEL CLIENTE</p>
+
+          <p><strong>Nombre:</strong> {customerName || 'No especificado'}</p>
+
+          <p><strong>Teléfono:</strong> {customerPhone || 'No especificado'}</p>
+
+          {customerEmail && <p><strong>Correo Electrónico:</strong> {customerEmail}</p>}
+
+        </div>
+
+
+
+        <div className="mb-6">
+
+          <h2 className="font-[var(--font-cinzel)] text-sm font-bold text-[#8c5349] uppercase tracking-wider mb-3">
+
+            DETALLE DE PRODUCTOS SELECCIONADOS
+
+          </h2>
+
+          <table className="w-full text-left text-xs border-collapse">
+
+            <thead>
+
+              <tr className="border-b-2 border-[#8c5349] text-[#8c5349] font-[var(--font-cinzel)] uppercase">
+
+                <th className="py-2 px-2">Imagen</th>
+
+                <th className="py-2 px-2">Producto</th>
+
+                <th className="py-2 px-2">Color</th>
+
+                <th className="py-2 px-2">Aroma</th>
+
+                <th className="py-2 px-2 text-center">Cant.</th>
+
+                <th className="py-2 px-2 text-right">Precio Unid.</th>
+
+                <th className="py-2 px-2 text-right">Subtotal</th>
+
+              </tr>
+
+            </thead>
+
+            <tbody className="divide-y divide-[#e2d0cb]">
+
+              {customizations.map((item) => (
+
+                <tr key={item.id} className="align-middle">
+
+                  <td className="py-3 px-2">
+
+                    {/* Tamaño ajustado a 1.5x (w-18 h-18 / 72px x 72px) */}
+
+                    <div className="w-18 h-18 relative border border-[#e2d0cb] rounded-lg overflow-hidden bg-white shadow-xs">
+
+                      <Image
+
+                        src={item.maskImageUrl || item.imageUrl}
+
+                        alt={item.productName}
+
+                        fill
+
+                        className="object-cover"
+
+                        unoptimized
+
+                      />
+
+                    </div>
+
+                  </td>
+
+                  <td className="py-3 px-2 font-bold">{item.productName}</td>
+
+                  <td className="py-3 px-2">{item.color}</td>
+
+                  <td className="py-3 px-2">{item.aroma}</td>
+
+                  <td className="py-3 px-2 text-center font-bold">{item.quantity}</td>
+
+                  <td className="py-3 px-2 text-right">${item.unitPrice.toFixed(2)}</td>
+
+                  <td className="py-3 px-2 text-right font-bold">${item.total.toFixed(2)} MXN</td>
+
+                </tr>
+
+              ))}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+
+
+        <div className="flex justify-end pt-4 border-t-2 border-[#8c5349]">
+
+          <div className="text-right text-xs">
+
+            <p className="font-bold font-[var(--font-cinzel)] text-[#8c5349] uppercase">TOTAL DE PIEZAS: {totalPiecesCount}</p>
+
+            <p className="text-base font-bold font-[var(--font-cinzel)] text-[#4a3531]">
+
+              TOTAL ACUMULADO: ${totalAmountSum.toFixed(2)} MXN
+
+            </p>
+
+          </div>
+
+        </div>
+
+
+
+        <div className="mt-12 text-center text-[10px] text-[#705651] italic border-t border-[#e2d0cb] pt-4">
+
+          <p>* Esta nota refleja la cotización de elaboración artesanal configurada en el sitio web de E-Aura.</p>
+
+        </div>
+
+      </div>
+
+    </>
+
   );
+
 }
+
+
+
+export default function CustomizerPage() {
+
+  return (
+
+    <main className="min-h-screen text-[#4a3531] font-[var(--font-montserrat)] p-6 bg-cover bg-center bg-fixed print:p-0 print:bg-none" style={{ backgroundImage: "url('/bg-texture.png')" }}>
+
+      <Suspense fallback={<div className="text-center py-20 font-[var(--font-cinzel)] text-[#a3685e]">Cargando...</div>}>
+
+        <PersonalizerContent />
+
+      </Suspense>
+
+    </main>
+
+  );
+
+} 
+
