@@ -146,7 +146,7 @@ export default function AdminDashboardPage() {
       name: '',
       slug: '',
       commentary: '',
-      price: 0,
+      price: '' as unknown as number, // Permite mostrar el campo limpio en el modal
       dimensions: '',
       images: [],
       categories: [],
@@ -566,13 +566,17 @@ export default function AdminDashboardPage() {
                 </label>
                 <input
                   type="number"
-                  value={editingProduct.price}
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={editingProduct.price === 0 || (editingProduct.price as unknown) === '' ? '' : editingProduct.price}
                   onChange={(e) =>
                     setEditingProduct({
                       ...editingProduct,
-                      price: parseFloat(e.target.value) || 0,
+                      price: e.target.value as unknown as number,
                     })
                   }
+                  onFocus={(e) => e.target.select()}
                   className="w-full px-4 py-2.5 rounded-xl border border-[#c9b596] bg-white focus:outline-none focus:ring-2 focus:ring-[#7a5c29]/40"
                   required
                 />

@@ -26,6 +26,18 @@ const alexBrush = Alex_Brush({
 export const metadata: Metadata = {
   title: 'E-Aura — Velas Artesanales & Recuerdos',
   description: 'Velas artesanales y recuerdos hechos a mano',
+  icons: {
+    icon: [
+      {
+        url: '/favicon-black.png',
+        media: '(prefers-color-scheme: light)',
+      },
+      {
+        url: '/favicon-white.png',
+        media: '(prefers-color-scheme: dark)',
+      },
+    ],
+  },
 };
 
 export default function RootLayout({

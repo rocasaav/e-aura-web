@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useCart } from '@/context/CartContext';
 
-// --- INTERFACES BASADAS EN EL ESQUEMA REAL DE SUPABASE ---
+// --- INTERFACES BASADAS EN EL ESQUEMA DE SUPABASE ---
 
 interface Category {
   id: number;
@@ -55,12 +55,14 @@ interface ProductImageCarouselProps {
   mainImage: string;
   images?: string[] | null;
   productName: string;
+  onImageClick?: (images: string[], initialIndex: number) => void;
 }
 
 function ProductImageCarousel({
   mainImage,
   images,
   productName,
+  onImageClick,
 }: ProductImageCarouselProps) {
   const imageList = images && images.length > 0 ? images : [mainImage];
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -100,7 +102,8 @@ function ProductImageCarousel({
     <div
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
-      className="w-full h-64 overflow-hidden rounded-xl mb-4 border border-[#e8ded1] bg-[#fdfbf7] relative shadow-inner group flex items-center justify-center p-2 select-none touch-pan-y"
+      className="w-full h-64 overflow-hidden rounded-xl mb-4 border border-[#e8ded1] bg-[#fdfbf7] relative shadow-inner group flex items-center justify-center p-2 select-none touch-pan-y cursor-zoom-in"
+      onClick={() => onImageClick && onImageClick(imageList, currentIndex)}
     >
       <div className="relative w-full h-full">
         <Image
@@ -171,9 +174,16 @@ export default function Home() {
   const [favorites, setFavorites] = useState<number[]>([]);
   const [mounted, setMounted] = useState(false);
 
+  // Estado para el Modal Lupa con Carrusel Integrado
+  const [lightboxData, setLightboxData] = useState<{
+    images: string[];
+    index: number;
+    title: string;
+  } | null>(null);
+
+  const touchStartXModal = useRef<number | null>(null);
   const whatsappNumber = '5573589465';
 
-  // Hidratación segura de favoritos en el cliente
   useEffect(() => {
     setMounted(true);
     const savedFavorites = localStorage.getItem('e_aura_favorites');
@@ -198,21 +208,17 @@ export default function Home() {
   };
 
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      setErrorMessage(null);
-      try {
-        // 1. Cargar Categorías
-        const { data: catData, error: catError } = await supabase
+  async function fetchData() {
+    setLoading(true);
+    setErrorMessage(null);
+    try {
+      // 🚀 Disparamos ambas peticiones en paralelo
+      const [catResult, prodResult] = await Promise.all([
+        supabase
           .from('categories')
           .select('id, name')
-          .order('name', { ascending: true });
-
-        if (catError) throw catError;
-        if (catData) setCategories(catData);
-
-        // 2. Cargar Productos y sus relaciones
-        const { data: productsData, error: prodError } = await supabase
+          .order('name', { ascending: true }),
+        supabase
           .from('products')
           .select(`
             id,
@@ -232,54 +238,61 @@ export default function Home() {
               aromas:aroma_id ( name )
             )
           `)
-          .eq('is_available', true);
+          .eq('is_available', true)
+      ]);
 
-        if (prodError) throw prodError;
+      const { data: catData, error: catError } = catResult;
+      const { data: productsData, error: prodError } = prodResult;
 
-        if (productsData) {
-          const formattedProducts: Product[] = (productsData as unknown as ProductQueryResult[]).map((prod) => {
-            const waxTypes = prod.product_wax_aromas
-              ?.map((item) => item.wax_types?.name)
-              .filter((name): name is string => Boolean(name));
+      if (catError) throw catError;
+      if (prodError) throw prodError;
 
-            const aromas = prod.product_wax_aromas
-              ?.map((item) => item.aromas?.name)
-              .filter((name): name is string => Boolean(name));
+      if (catData) setCategories(catData);
 
-            const categoryIds = prod.product_categories
-              ?.map((pc) => pc.category_id)
-              .filter(Boolean) || [];
+      if (productsData) {
+        const formattedProducts: Product[] = (productsData as unknown as ProductQueryResult[]).map((prod) => {
+          const waxTypes = prod.product_wax_aromas
+            ?.map((item) => item.wax_types?.name)
+            .filter((name): name is string => Boolean(name));
 
-            const imageList = prod.images && prod.images.length > 0 ? prod.images : ['/placeholder.png'];
+          const aromas = prod.product_wax_aromas
+            ?.map((item) => item.aromas?.name)
+            .filter((name): name is string => Boolean(name));
 
-            return {
-              id: prod.id,
-              category_ids: categoryIds,
-              name: prod.name,
-              slug: prod.slug,
-              description: prod.commentary || 'Vela artesanal personalizada hecha con insumos naturales de alta calidad.',
-              price: Number(prod.price) || 0,
-              wax_type: waxTypes?.length ? Array.from(new Set(waxTypes)).join(', ') : 'Cera Artesanal',
-              aroma: aromas?.length ? Array.from(new Set(aromas)).join(', ') : 'Aroma Natural',
-              dimensions: prod.dimensions || 'N/A',
-              image_url: imageList[0],
-              images: imageList,
-              is_available: prod.is_available,
-            };
-          });
+          const categoryIds = prod.product_categories
+            ?.map((pc) => pc.category_id)
+            .filter(Boolean) || [];
 
-          setProducts(formattedProducts);
-        }
-      } catch (err: unknown) {
-        console.error('Error al consultar Supabase:', err);
-        setErrorMessage('No se pudieron cargar los productos. Por favor intenta de nuevo.');
-      } finally {
-        setLoading(false);
+          const imageList = prod.images && prod.images.length > 0 ? prod.images : ['/placeholder.png'];
+
+          return {
+            id: prod.id,
+            category_ids: categoryIds,
+            name: prod.name,
+            slug: prod.slug,
+            description: prod.commentary || 'Vela artesanal personalizada hecha con insumos naturales de alta calidad.',
+            price: Number(prod.price) || 0,
+            wax_type: waxTypes?.length ? Array.from(new Set(waxTypes)).join(', ') : 'Cera Artesanal',
+            aroma: aromas?.length ? Array.from(new Set(aromas)).join(', ') : 'Aroma Natural',
+            dimensions: prod.dimensions || 'N/A',
+            image_url: imageList[0],
+            images: imageList,
+            is_available: prod.is_available,
+          };
+        });
+
+        setProducts(formattedProducts);
       }
+    } catch (err: unknown) {
+      console.error('Error al consultar Supabase:', err);
+      setErrorMessage('No se pudieron cargar los productos. Por favor intenta de nuevo.');
+    } finally {
+      setLoading(false);
     }
+  }
 
-    fetchData();
-  }, []);
+  fetchData();
+}, []);
 
   const handleWhatsAppQuote = (productName: string) => {
     const message = encodeURIComponent(
@@ -300,6 +313,49 @@ export default function Home() {
     return matchesCategory && matchesSearch;
   });
 
+  // Funciones de navegación para el Modal Lupa
+  const nextLightboxImage = () => {
+    if (!lightboxData) return;
+    setLightboxData((prev) =>
+      prev
+        ? {
+            ...prev,
+            index: prev.index === prev.images.length - 1 ? 0 : prev.index + 1,
+          }
+        : null
+    );
+  };
+
+  const prevLightboxImage = () => {
+    if (!lightboxData) return;
+    setLightboxData((prev) =>
+      prev
+        ? {
+            ...prev,
+            index: prev.index === 0 ? prev.images.length - 1 : prev.index - 1,
+          }
+        : null
+    );
+  };
+
+  const handleModalTouchStart = (e: React.TouchEvent) => {
+    touchStartXModal.current = e.touches[0].clientX;
+  };
+
+  const handleModalTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartXModal.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const swipeDistance = touchStartXModal.current - touchEndX;
+    const minSwipeDistance = 40;
+
+    if (swipeDistance > minSwipeDistance) {
+      nextLightboxImage();
+    } else if (swipeDistance < -minSwipeDistance) {
+      prevLightboxImage();
+    }
+    touchStartXModal.current = null;
+  };
+
   return (
     <main
       className="min-h-screen text-[#4a3b2c] relative font-[var(--font-montserrat)] flex flex-col justify-between bg-cover bg-center bg-fixed"
@@ -316,7 +372,7 @@ export default function Home() {
                 Nuestro catálogo
               </span>
               <h1 className="font-cursive text-5xl md:text-6xl text-[#5a3e2b] leading-tight my-0">
-                  E-Aura
+                E-Aura
               </h1>
             </div>
 
@@ -330,27 +386,27 @@ export default function Home() {
               />
 
               <Link
-  href="/mis-favoritos"
-  onClick={(e) => {
-    if (!mounted || favorites.length === 0) {
-      e.preventDefault();
-    }
-  }}
-  aria-disabled={!mounted || favorites.length === 0}
-  className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-serif transition-all shadow-sm border border-[#3d2b1f] ${
-    mounted && favorites.length > 0
-      ? 'bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white active:scale-95 cursor-pointer'
-      : 'bg-[#5a3e2b]/50 text-white/60 border-[#3d2b1f]/40 opacity-50 cursor-not-allowed pointer-events-none'
-  }`}
->
-  <span className={mounted && favorites.length > 0 ? "text-rose-400" : "text-gray-300"}>♥</span>
-  <span>Mis Me Gusta</span>
-  {mounted && favorites.length > 0 && (
-    <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
-      {favorites.length}
-    </span>
-  )}
-</Link>
+                href="/mis-favoritos"
+                onClick={(e) => {
+                  if (!mounted || favorites.length === 0) {
+                    e.preventDefault();
+                  }
+                }}
+                aria-disabled={!mounted || favorites.length === 0}
+                className={`w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs px-3.5 py-1.5 rounded-full font-serif transition-all shadow-sm border border-[#3d2b1f] ${
+                  mounted && favorites.length > 0
+                    ? 'bg-[#5a3e2b] hover:bg-[#3d2b1f] text-white active:scale-95 cursor-pointer'
+                    : 'bg-[#5a3e2b]/50 text-white/60 border-[#3d2b1f]/40 opacity-50 cursor-not-allowed pointer-events-none'
+                }`}
+              >
+                <span className={mounted && favorites.length > 0 ? 'text-rose-400' : 'text-gray-300'}>♥</span>
+                <span>Mis Me Gusta</span>
+                {mounted && favorites.length > 0 && (
+                  <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full ml-0.5">
+                    {favorites.length}
+                  </span>
+                )}
+              </Link>
 
               <button
                 type="button"
@@ -432,6 +488,13 @@ export default function Home() {
                         mainImage={product.image_url}
                         images={product.images}
                         productName={product.name}
+                        onImageClick={(images, initialIndex) =>
+                          setLightboxData({
+                            images,
+                            index: initialIndex,
+                            title: product.name,
+                          })
+                        }
                       />
                       <h3 className="font-cursive text-3xl md:text-4xl text-[#3d2b1f] text-center mb-1 leading-snug">
                         {product.name}
@@ -454,7 +517,6 @@ export default function Home() {
                         </span>
                       </div>
 
-                      {/* BOTONES DE ACCIÓN */}
                       <div className="grid grid-cols-6 gap-1.5">
                         <button
                           type="button"
@@ -480,7 +542,7 @@ export default function Home() {
                         <button
                           type="button"
                           onClick={() => toggleFavorite(product.id)}
-                          title={isFavorite ? "Quitar de Me Gusta" : "Agregar a Me Gusta"}
+                          title={isFavorite ? 'Quitar de Me Gusta' : 'Agregar a Me Gusta'}
                           className={`col-span-1 rounded-xl flex items-center justify-center text-base border transition-all active:scale-90 ${
                             isFavorite
                               ? 'bg-rose-100 border-rose-300 text-rose-600 shadow-inner'
@@ -498,9 +560,204 @@ export default function Home() {
           )}
         </section>
 
+        {/* MODAL LUPA CON CARRUSEL INTEGRADO OPTIMIZADO */}
+        {lightboxData && (
+          <div
+            className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 md:p-6 transition-opacity duration-300 select-none"
+            onClick={() => setLightboxData(null)}
+          >
+            <div
+              className="relative max-w-4xl max-h-[92vh] w-full flex flex-col items-center justify-center bg-[#fdfbf7] rounded-2xl overflow-hidden border border-[#c9b596]/40 shadow-2xl p-4 md:p-6"
+              onClick={(e) => e.stopPropagation()}
+              onTouchStart={handleModalTouchStart}
+              onTouchEnd={handleModalTouchEnd}
+            >
+              {/* Botón para cerrar */}
+              <button
+                type="button"
+                onClick={() => setLightboxData(null)}
+                className="absolute top-3 right-3 bg-[#3d2b1f] hover:bg-[#5a3e2b] text-white w-9 h-9 rounded-full flex items-center justify-center shadow-md border border-[#c9b596]/50 text-sm font-bold z-20 transition-transform active:scale-90 cursor-pointer"
+                aria-label="Cerrar vista ampliada"
+              >
+                ✕
+              </button>
+
+              {/* Título y Contador del Modal */}
+              <div className="w-full text-center mb-2 px-8">
+                <h4 className="font-cursive text-2xl md:text-3xl text-[#3d2b1f] leading-none">
+                  {lightboxData.title}
+                </h4>
+                {lightboxData.images.length > 1 && (
+                  <span className="text-[11px] font-serif text-[#7a5c29] uppercase tracking-wider block mt-1">
+                    Imagen {lightboxData.index + 1} de {lightboxData.images.length}
+                  </span>
+                )}
+              </div>
+
+              {/* Contenedor Principal de la Foto */}
+              <div className="relative w-full h-[55vh] md:h-[65vh] my-2 flex items-center justify-center">
+                <Image
+                  src={lightboxData.images[lightboxData.index] || '/placeholder.png'}
+                  alt={`${lightboxData.title} ampliado`}
+                  fill
+                  className="object-contain"
+                  sizes="100vw"
+                  priority
+                />
+
+                {/* Flechas de Navegación en Pantalla Grande */}
+                {lightboxData.images.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={prevLightboxImage}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/80 hover:bg-[#3d2b1f] text-white p-3 rounded-full backdrop-blur-sm transition-all text-sm z-10 shadow-lg active:scale-95"
+                      aria-label="Foto anterior"
+                    >
+                      ❮
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={nextLightboxImage}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#3d2b1f]/80 hover:bg-[#3d2b1f] text-white p-3 rounded-full backdrop-blur-sm transition-all text-sm z-10 shadow-lg active:scale-95"
+                      aria-label="Siguiente foto"
+                    >
+                      ❯
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Miniaturas Inferiores con Descarga Inmediata Optimizada */}
+              {lightboxData.images.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto max-w-full py-2 px-1 scrollbar-none items-center">
+                  {lightboxData.images.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setLightboxData((prev) => (prev ? { ...prev, index: idx } : null))}
+                      className={`relative w-12 h-12 md:w-14 md:h-14 rounded-lg overflow-hidden border-2 transition-all flex-shrink-0 ${
+                        lightboxData.index === idx
+                          ? 'border-[#7a5c29] scale-105 shadow-md'
+                          : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <Image
+                        src={img}
+                        alt={`Miniatura ${idx + 1}`}
+                        fill
+                        loading="eager"
+                        quality={40}
+                        className="object-cover"
+                        sizes="60px"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* PIE DE PÁGINA */}
-        <footer className="text-center py-4 border-t border-[#7a5c29]/20 text-[10px] text-[#6b5235] tracking-wider uppercase font-[var(--font-cinzel)]">
-          © {new Date().getFullYear()} E-Aura — Velas Artesanales
+        <footer className="mt-12 border-t border-[#7a5c29]/20 pt-10 pb-6 bg-white/40 backdrop-blur-md rounded-t-3xl border-x border-white/60 shadow-lg px-6 md:px-12 text-[#4a3b2c]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 text-center md:text-left">
+            <div className="space-y-3">
+              <h2 className="font-cursive text-4xl text-[#5a3e2b] leading-none">E-Aura</h2>
+              <p className="text-xs text-[#6b5235] leading-relaxed font-serif">
+                Velas artesanales de cera natural y recuerdos hechos a mano. Para nosotros, cada cliente es único: si tienes un diseño en mente, dinos cómo lo imaginas y lo creamos especialmente para ti.
+              </p>
+              <div className="text-[11px] font-semibold text-[#7a5c29] font-serif tracking-wider uppercase pt-1">
+                ✨ Hecho con amor en México
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-serif text-xs uppercase tracking-widest text-[#3d2b1f] font-bold border-b border-[#c9b596]/40 pb-1.5 inline-block md:block">
+                Contacto & Pedidos
+              </h3>
+              <ul className="space-y-2 text-xs text-[#5c4a38]">
+                <li className="flex items-center justify-center md:justify-start gap-2">
+                  <span className="text-emerald-700 font-bold">📱 Tel / WhatsApp:</span>
+                  <a 
+                    href={`https://wa.me/${whatsappNumber}`} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="hover:underline hover:text-[#3d2b1f] transition-colors"
+                  >
+                    +52 55 7358 9465
+                  </a>
+                </li>
+                <li className="flex items-center justify-center md:justify-start gap-2">
+                  <span className="text-[#7a5c29] font-bold">✉️ Correo:</span>
+                  <a 
+                    href="mailto:ventas@e-aura.com.mx" 
+                    className="hover:underline hover:text-[#3d2b1f] transition-colors"
+                  >
+                    contacto@e-aura.com.mx
+                  </a>
+                </li>
+                <li className="flex items-center justify-center md:justify-start gap-2 text-[11px] text-[#7a5c29]">
+                  <span>🕒 Atención: Lun a Dom - 9:00 AM a 7:00 PM</span>
+                </li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="font-serif text-xs uppercase tracking-widest text-[#3d2b1f] font-bold border-b border-[#c9b596]/40 pb-1.5 inline-block md:block">
+                Síguenos en Redes
+              </h3>
+              <p className="text-xs text-[#6b5235]">
+                Conoce nuestros nuevos diseños, procesos de elaboración y promociones especiales.
+              </p>
+              
+              <div className="flex justify-center md:justify-start items-center gap-3 pt-1">
+  {/* Instagram */}
+  <a
+    href="https://www.instagram.com/laylashop_e?igsh=MW1nZmlsaG13NHZzNQ=="
+    target="_blank"
+    rel="noopener noreferrer"
+    className="bg-white/80 hover:bg-[#5a3e2b] hover:text-white text-[#3d2b1f] border border-[#c9b596]/60 p-2 rounded-full transition-all shadow-sm hover:scale-110"
+    aria-label="Instagram E-Aura"
+  >
+    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
+    </svg>
+  </a>
+
+  {/* Facebook */}
+  <a
+    href="https://www.facebook.com/share/1BHy6xB8e7/"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="bg-white/80 hover:bg-[#5a3e2b] hover:text-white text-[#3d2b1f] border border-[#c9b596]/60 p-2 rounded-full transition-all shadow-sm hover:scale-110"
+    aria-label="Facebook E-Aura"
+  >
+    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+      <path d="M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.374 14.5 5 15.5 5H18V0h-3.808C10.592 0 9 1.583 9 4.615V8z" />
+    </svg>
+  </a>
+
+  {/* TikTok */}
+  <a
+    href="https://www.tiktok.com/@lyla.lyla385?_r=1&_t=ZS-98q3FUASibl"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="bg-white/80 hover:bg-[#5a3e2b] hover:text-white text-[#3d2b1f] border border-[#c9b596]/60 p-2 rounded-full transition-all shadow-sm hover:scale-110"
+    aria-label="TikTok E-Aura"
+  >
+    <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+      <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.82.57-1.31 1.56-1.28 2.56.02.82.42 1.61 1.08 2.11.83.65 1.98.81 2.97.43.91-.33 1.61-1.09 1.83-2.03.11-.64.08-1.3-.01-1.94-.02-3.55-.01-7.1-.01-10.65z" />
+    </svg>
+  </a>
+</div>
+            </div>
+          </div>
+
+          <div className="border-t border-[#7a5c29]/15 pt-4 text-center text-[11px] text-[#6b5235]">
+            <p>© {new Date().getFullYear()} E-Aura. Todos los derechos reservados.</p>
+          </div>
         </footer>
       </div>
     </main>
