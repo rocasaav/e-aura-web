@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabase';
-import { getOrCreateSessionToken } from '@/lib/session';
+import { getOrCreateSessionToken } from '../lib/session';
 
 export default function CartDrawer() {
   const {
