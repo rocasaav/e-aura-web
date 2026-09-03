@@ -490,17 +490,15 @@ function PersonalizerContent() {
 
 
 
-    let message = `✨ *NUEVO PEDIDO DE E-AURA* ✨\n\n`;
+    let message = `⭐ *NUEVO PEDIDO DE E-AURA* ⭐\n\n`;
 
     message += `👤 *Cliente:* ${customerName}\n`;
-
-    message += `📱 *Teléfono:* ${customerPhone}\n`;
-
-    if (customerEmail) message += `📧 *Correo:* ${customerEmail}\n`;
+    message += `📞 *Teléfono:* ${customerPhone}\n`;
+    if (customerEmail) message += `✉️ *Correo:* ${customerEmail}\n`;
 
     message += `\n--------------------------------\n`;
 
-    message += `🕯️ *DETALLE DEL PEDIDO:*\n\n`;
+    message += `🕯 *DETALLE DEL PEDIDO:*\n\n`;
 
 
 
@@ -520,13 +518,12 @@ function PersonalizerContent() {
 
 
 
-    message += `--------------------------------\n`;
+      message += `--------------------------------\n`;
 
-    message += `📦 *TOTAL PIEZAS:* ${totalPiecesCount}\n`;
+      message += `📦 *Total de piezas:* ${totalPiecesCount}\n`;
+      message += `💵 *Total a pagar:* $${totalAmountSum.toFixed(2)} MXN\n\n`;
 
-    message += `💰 *TOTAL A PAGAR:* $${totalAmountSum.toFixed(2)} MXN\n\n`;
-
-    message += `¡Hola! Me gustaría confirmar este pedido personalizado. Gracias.`;
+      message += `Hola, me gustaría confirmar este pedido personalizado. Muchas gracias.`;
 
 
 

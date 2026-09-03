@@ -96,13 +96,19 @@ export default function CartDrawer() {
       }
 
       // 3. Generar mensaje estructurado de WhatsApp
-      const phoneNumber = '525573589465';
-      let message = `✨ *NUEVO PEDIDO E-AURA* ✨\n\n`;
-      message += `👤 *Cliente:* ${customerName.trim()}\n`;
-      message += `📞 *Teléfono:* ${customerPhone.trim()}\n`;
-      if (customerEmail.trim()) message += `✉️ *Correo:* ${customerEmail.trim()}\n`;
-      message += `\n📦 *Detalle del Pedido:*\n`;
-      message += `-----------------------------------\n`;
+        const phoneNumber = '525573589465';
+
+        let message = `⭐ *Nuevo pedido de E‑Aura* ⭐\n\n`;
+
+        message += `👤 *Cliente:* ${customerName.trim()}\n`;
+        message += `📞 *Teléfono:* ${customerPhone.trim()}\n`;
+
+        if (customerEmail.trim()) {
+        message += `✉️ *Correo:* ${customerEmail.trim()}\n`;
+}
+
+message += `\n📦 *Aquí está el detalle de tu pedido:* \n`;
+message += `-----------------------------------\n`;
 
       cart.forEach((item: any, index: number) => {
         message += `${index + 1}. *${item.name}*\n`;
@@ -113,8 +119,9 @@ export default function CartDrawer() {
       });
 
       message += `-----------------------------------\n`;
-      message += `💰 *TOTAL A PAGAR:* $${totalPrice.toFixed(2)} MXN\n\n`;
-      message += `Quedo a la espera de sus datos de pago e indicaciones de envío. ¡Gracias!`;
+      message += `💵 *Total a pagar:* $${totalPrice.toFixed(2)} MXN\n\n`;
+      message += `Quedo atento a sus datos de pago y a las indicaciones para el envío. Muchas gracias.`;
+
 
       const encodedMessage = encodeURIComponent(message);
       const whatsappUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
