@@ -131,13 +131,13 @@ export default function CartDrawer() {
       setIsCartOpen(false);
       window.open(whatsappUrl, '_blank');
 
-      } catch (err) {
-          console.error('Error al procesar pedido:', err);
-          setCheckoutError('Ocurrió un error inesperado al procesar la solicitud.');
-      }     finally {
-        setIsSubmitting(false);
-       }
-     };
+    } catch (err) {
+      console.error('Error al procesar pedido:', err);
+      setCheckoutError('Ocurrió un error inesperado al procesar la solicitud.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -179,8 +179,12 @@ export default function CartDrawer() {
               </div>
 
             ) : (
+
               cart.map((item: any, idx: number) => {
-                const safeImage = item.image && typeof item.image === 'string' && item.image.trim() !== '' ? item.image : '/placeholder.png';
+                const safeImage =
+                  item.image && typeof item.image === 'string' && item.image.trim() !== ''
+                    ? item.image
+                    : '/placeholder.png';
 
                 return (
                   <div
@@ -228,7 +232,9 @@ export default function CartDrawer() {
                       {/* Selector de cantidad */}
                       <div className="flex items-center gap-2 mt-2">
                         <button
-                          onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity - 1)}
+                          onClick={() =>
+                            updateQuantity(item.cartItemId || item.id, item.quantity - 1)
+                          }
                           className="w-5 h-5 rounded bg-[#fdfbf7] border border-[#c9b596] flex items-center justify-center text-xs font-bold hover:bg-[#e8ded1] cursor-pointer"
                           aria-label="Disminuir cantidad"
                         >
@@ -238,7 +244,9 @@ export default function CartDrawer() {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity + 1)}
+                          onClick={() =>
+                            updateQuantity(item.cartItemId || item.id, item.quantity + 1)
+                          }
                           className="w-5 h-5 rounded bg-[#fdfbf7] border border-[#c9b596] flex items-center justify-center text-xs font-bold hover:bg-[#e8ded1] cursor-pointer"
                           aria-label="Aumentar cantidad"
                         >
@@ -258,7 +266,9 @@ export default function CartDrawer() {
                     </button>
                   </div>
                 );
-              })}
+              })
+
+
 
 
             {/* Resumen y Checkout */}
@@ -368,6 +378,6 @@ export default function CartDrawer() {
           </div>
         )}
       </div>
-      </div>
-      );
+    </div>
+  );
 }
