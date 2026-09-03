@@ -80,13 +80,14 @@ export default function CartDrawer() {
       const itemsToInsert = cart.map((item: any) => ({
         session_token: sessionToken,
         customer_id: customerId,
-        product_id: isNaN(Number(item.id)) ? null : Number(item.id),
+        product_id: Number(item.id),
         product_name: item.name || 'Vela Artesanal E-Aura',
         color_name: item.colorName || 'Estándar',
         color_hex: item.colorHex || '',
         aroma_name: item.selectedAroma || 'Sin Aroma',
         quantity: Number(item.quantity) || 1,
         unit_price: Number(item.price) || 0,
+        total_price: Number(item.price) * Number(item.quantity),
       }));
 
       const { error: cartError } = await supabase.from('cart_items').insert(itemsToInsert);
@@ -177,23 +178,34 @@ message += `-----------------------------------\n`;
                 </button>
               </div>
             ) : (
-              cart.map((item: any, idx: number) => (
-                <div
-                  key={item.cartItemId || item.id || idx}
-                  className="flex gap-4 p-3 bg-white rounded-xl border border-[#e8ded1] shadow-sm items-center"
-                >
-                  {item.image && (
-                    <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#f2eae1] flex-shrink-0 bg-[#fdfbf7]">
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        sizes="64px"
-                        className="object-cover"
-                        unoptimized
-                      />
-                    </div>
-                  )}
+              cart.map((item: any, idx: number) => {
+  const safeImage =
+    item.image && typeof item.image === 'string' && item.image.trim() !== ''
+      ? item.image
+      : '/placeholder.png';
+
+  return (
+    <div
+      key={item.cartItemId || item.id || idx}
+      className="flex gap-4 p-3 bg-white rounded-xl border border-[#e8ded1] shadow-sm items-center"
+    >
+      <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#f2eae1] flex-shrink-0 bg-[#fdfbf7]">
+        <Image
+          src={safeImage}
+          alt={item.name || 'Producto'}
+          fill
+          sizes="64px"
+          className="object-cover"
+          unoptimized
+        />
+      </div>
+
+      {/* resto del contenido */}
+    </div>
+  );
+})
+
+
 
                   <div className="flex-1">
                     <h3 className="font-bold text-xs text-[#3d2b1f]">{item.name}</h3>

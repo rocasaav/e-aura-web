@@ -60,7 +60,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cart]);
 
   const addToCart = (product: AddToCartInput, quantity = 1) => {
-    const imageUrl = product.image || product.image_url || '';
+    const rawImage = product.image || product.image_url;
+
+    const imageUrl = rawImage && typeof rawImage === 'string' && rawImage.trim() !== ''? rawImage: '/placeholder.png';
+
     
     // Generar un cartItemId único combinando ID, color y aroma
     const color = product.colorName || 'estandar';
