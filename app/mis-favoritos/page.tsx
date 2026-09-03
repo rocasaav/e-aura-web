@@ -10,7 +10,7 @@ import Link from 'next/link';
 
 import Image from 'next/image';
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from "../../lib/supabase";
 
 import { getOrCreateSessionToken } from '@/lib/session';
 
