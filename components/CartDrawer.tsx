@@ -177,12 +177,10 @@ message += `-----------------------------------\n`;
                   Explorar Catálogo
                 </button>
               </div>
+              
             ) : (
              cart.map((item: any, idx: number) => {
-  const safeImage =
-    item.image && typeof item.image === 'string' && item.image.trim() !== ''
-      ? item.image
-      : '/placeholder.png';
+              const safeImage =item.image && typeof item.image === 'string' && item.image.trim() !== ''? item.image: '/placeholder.png';
 
   return (
     <div
