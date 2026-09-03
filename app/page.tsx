@@ -679,7 +679,7 @@ export default function Home() {
               </h3>
               <ul className="space-y-2 text-xs text-[#5c4a38]">
                 <li className="flex items-center justify-center md:justify-start gap-2">
-                  <span className="text-emerald-700 font-bold">📱 Tel / WhatsApp:</span>
+                  <span className="text-emerald-700 font-bold">📱 Tel. / WhatsApp:</span>
                   <a 
                     href={`https://wa.me/${whatsappNumber}`} 
                     target="_blank" 
