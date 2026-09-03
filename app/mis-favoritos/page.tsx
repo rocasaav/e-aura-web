@@ -12,7 +12,7 @@ import Image from 'next/image';
 
 import { supabase } from "../../lib/supabase";
 
-import { getOrCreateSessionToken } from '@/lib/session';
+import { getOrCreateSessionToken } from '../../lib/session';
 
 
 
