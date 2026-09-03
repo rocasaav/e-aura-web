@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { Montserrat, Cinzel, Alex_Brush } from 'next/font/google';
 import './globals.css';
-import { CartProvider } from '@/context/CartContext';
-import CartDrawer from '@/components/CartDrawer';
+import { CartProvider } from '../context/CartContext';
+import CartDrawer from '../components/CartDrawer';
 
 
 const montserrat = Montserrat({
