@@ -178,7 +178,7 @@ message += `-----------------------------------\n`;
                 </button>
               </div>
             ) : (
-              cart.map((item: any, idx: number) => {
+             cart.map((item: any, idx: number) => {
   const safeImage =
     item.image && typeof item.image === 'string' && item.image.trim() !== ''
       ? item.image
@@ -189,6 +189,7 @@ message += `-----------------------------------\n`;
       key={item.cartItemId || item.id || idx}
       className="flex gap-4 p-3 bg-white rounded-xl border border-[#e8ded1] shadow-sm items-center"
     >
+      {/* Imagen */}
       <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-[#f2eae1] flex-shrink-0 bg-[#fdfbf7]">
         <Image
           src={safeImage}
@@ -200,72 +201,67 @@ message += `-----------------------------------\n`;
         />
       </div>
 
-      {/* resto del contenido */}
+      {/* Información del producto */}
+      <div className="flex-1">
+        <h3 className="font-bold text-xs text-[#3d2b1f]">{item.name}</h3>
+
+        {/* Detalle de Color y Aroma */}
+        <div className="space-y-0.5 mt-1">
+          {item.colorName && (
+            <div className="flex items-center gap-1.5 text-[10px] text-[#6b5235]">
+              {item.colorHex && (
+                <span
+                  className="w-2.5 h-2.5 rounded-full border border-black/20 shadow-inner inline-block"
+                  style={{ backgroundColor: item.colorHex }}
+                />
+              )}
+              <span>Color: {item.colorName}</span>
+            </div>
+          )}
+          {item.selectedAroma && (
+            <p className="text-[10px] text-[#7a5c29]">Aroma: {item.selectedAroma}</p>
+          )}
+        </div>
+
+        <p className="text-xs font-semibold text-[#3d2b1f] mt-1.5">
+          ${item.price.toFixed(2)} MXN
+        </p>
+
+        {/* Selector de cantidad */}
+        <div className="flex items-center gap-2 mt-2">
+          <button
+            onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity - 1)}
+            className="w-5 h-5 rounded bg-[#fdfbf7] border border-[#c9b596] flex items-center justify-center text-xs font-bold hover:bg-[#e8ded1] cursor-pointer"
+            aria-label="Disminuir cantidad"
+          >
+            -
+          </button>
+          <span className="text-xs font-semibold w-4 text-center">
+            {item.quantity}
+          </span>
+          <button
+            onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity + 1)}
+            className="w-5 h-5 rounded bg-[#fdfbf7] border border-[#c9b596] flex items-center justify-center text-xs font-bold hover:bg-[#e8ded1] cursor-pointer"
+            aria-label="Aumentar cantidad"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      {/* Botón eliminar */}
+      <button
+        onClick={() => removeFromCart(item.cartItemId || item.id)}
+        className="text-rose-600 hover:text-rose-800 text-xs p-1 cursor-pointer"
+        title="Eliminar producto"
+        aria-label={`Eliminar ${item.name}`}
+      >
+        ✕
+      </button>
     </div>
   );
-})
+})}
 
-
-
-                  <div className="flex-1">
-                    <h3 className="font-bold text-xs text-[#3d2b1f]">{item.name}</h3>
-                    
-                    {/* Detalle de Color y Aroma */}
-                    <div className="space-y-0.5 mt-1">
-                      {item.colorName && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-[#6b5235]">
-                          {item.colorHex && (
-                            <span 
-                              className="w-2.5 h-2.5 rounded-full border border-black/20 shadow-inner inline-block"
-                              style={{ backgroundColor: item.colorHex }}
-                            />
-                          )}
-                          <span>Color: {item.colorName}</span>
-                        </div>
-                      )}
-                      {item.selectedAroma && (
-                        <p className="text-[10px] text-[#7a5c29]">Aroma: {item.selectedAroma}</p>
-                      )}
-                    </div>
-
-                    <p className="text-xs font-semibold text-[#3d2b1f] mt-1.5">
-                      ${item.price.toFixed(2)} MXN
-                    </p>
-
-                    {/* Selector de cantidad */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <button
-                        onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity - 1)}
-                        className="w-5 h-5 rounded bg-[#fdfbf7] border border-[#c9b596] flex items-center justify-center text-xs font-bold hover:bg-[#e8ded1] cursor-pointer"
-                        aria-label="Disminuir cantidad"
-                      >
-                        -
-                      </button>
-                      <span className="text-xs font-semibold w-4 text-center">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(item.cartItemId || item.id, item.quantity + 1)}
-                        className="w-5 h-5 rounded bg-[#fdfbf7] border border-[#c9b596] flex items-center justify-center text-xs font-bold hover:bg-[#e8ded1] cursor-pointer"
-                        aria-label="Aumentar cantidad"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => removeFromCart(item.cartItemId || item.id)}
-                    className="text-rose-600 hover:text-rose-800 text-xs p-1 cursor-pointer"
-                    title="Eliminar producto"
-                    aria-label={`Eliminar ${item.name}`}
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
 
           {/* Resumen y Checkout */}
           {cart.length > 0 && (
