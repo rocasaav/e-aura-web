@@ -2,10 +2,6 @@
 const nextConfig = {
   devIndicators: {},
 
-  experimental: {
-    turbo: false
-  },
-
   images: {
     remotePatterns: [
       {

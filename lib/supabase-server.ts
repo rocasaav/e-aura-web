@@ -9,16 +9,16 @@ export function createServerSupabase() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name) => {
+        get(name) {
           return cookieStore.get(name)?.value;
         },
-        set: (name, value, options) => {
+        set(name, value, options) {
           cookieStore.set(name, value, options);
         },
-        remove: (name, options) => {
+        remove(name, options) {
           cookieStore.set(name, "", options);
-        },
-      },
+        }
+      }
     }
   );
 }
