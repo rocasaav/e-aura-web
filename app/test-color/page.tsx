@@ -4,8 +4,8 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
-import { getOrCreateSessionToken } from '@/lib/session';
+import { supabase } from '../../lib/supabase';
+import { getOrCreateSessionToken } from '../../lib/session';
 
 interface Product {
   id: number;

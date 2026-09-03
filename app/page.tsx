@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { supabase } from "../lib/supabase";
-import { useCart } from '@/context/CartContext';
+import { useCart } from '../context/CartContext';
 
 // --- INTERFACES BASADAS EN EL ESQUEMA DE SUPABASE ---
 
