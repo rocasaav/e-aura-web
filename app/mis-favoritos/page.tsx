@@ -910,12 +910,13 @@ function PersonalizerContent() {
           </div>
         </div>
 
-        <div className="mt-12 text-center text-[10px] text-[#705651] italic border-t border-[#e2d0cb] pt-4">
+                <div className="mt-12 text-center text-[10px] text-[#705651] italic border-t border-[#e2d0cb] pt-4">
           <p>* Esta nota refleja la cotización de elaboración artesanal configurada en el sitio web de E-Aura.</p>
         </div>
-      </div>
+      </div>  {/* cierre del bloque de impresión */}
+    </div>    {/* cierre del contenedor principal de PersonalizerContent */}
   );
-}
+}            {/* cierre de PersonalizerContent */}
 
 /* EXPORT DEL COMPONENTE */
 export default function CustomizerPage() {
@@ -936,3 +937,4 @@ export default function CustomizerPage() {
     </main>
   );
 }
+
