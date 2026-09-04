@@ -914,8 +914,6 @@ function PersonalizerContent() {
           <p>* Esta nota refleja la cotización de elaboración artesanal configurada en el sitio web de E-Aura.</p>
         </div>
       </div>
-//atención aquí
-    </div>
   );
 }
 
