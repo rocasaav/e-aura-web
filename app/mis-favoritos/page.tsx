@@ -1,4 +1,3 @@
-// Bloque 1/10
 'use client';
 
 import type React from 'react';
@@ -63,7 +62,6 @@ function createCustomColorState(hex: string): ColorState {
     shadowColor: `${hex}55`,
   };
 }
-// Bloque 2/10
 function PersonalizerContent() {
   const searchParams = useSearchParams();
   const productId = searchParams.get('id');
@@ -133,7 +131,6 @@ function PersonalizerContent() {
       console.error('Error al cargar aromas:', err);
     }
   };
-// Bloque 3/10
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
@@ -214,7 +211,6 @@ function PersonalizerContent() {
     setProduct(selectedProd);
     fetchAromasForProduct(selectedProd.id);
   };
-// Bloque 4/10
   const handleSaveConfiguration = () => {
     if (!product) return;
 
@@ -310,7 +306,6 @@ function PersonalizerContent() {
 
     setIsModalOpen(false);
   };
-// Bloque 5/10
   if (loading) {
     return (
       <div className="text-center py-20 font-[var(--font-cinzel)] text-[#a3685e]">
@@ -340,7 +335,6 @@ function PersonalizerContent() {
 
   return (
     <>
-      {/* VISTA WEB HABITUAL */}
       <div className="print:hidden max-w-5xl mx-auto space-y-6 pb-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -424,504 +418,508 @@ function PersonalizerContent() {
     </>
   );
 }
-// Bloque 6/10
-<div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-  {/* PREVIEW DE LA VELA */}
-  <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs flex flex-col items-center justify-center relative">
-    <div className="bg-[#fffcfb] border border-[#f0e4e1] rounded-xl p-4 w-full flex flex-col items-center justify-center relative h-96 shadow-inner overflow-hidden">
-      <div className="relative w-48 h-64 flex justify-center items-end my-4">
-        {/* FLAMA */}
-        <div className="absolute top-2 z-30 flex items-center justify-center">
-          <svg width="44" height="64" viewBox="0 0 44 64" fill="none" className="drop-shadow-xs">
-            <defs>
-              <linearGradient id="flameOuterGrad" x1="22" y1="4" x2="22" y2="60" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#fef08a" />
-                <stop offset="50%" stopColor="#f97316" />
-                <stop offset="100%" stopColor="#ea580c" />
-              </linearGradient>
+      {/* PREVIEW + CONTROLES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        {/* PREVIEW DE LA VELA */}
+        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs flex flex-col items-center justify-center relative">
+          <div className="bg-[#fffcfb] border border-[#f0e4e1] rounded-xl p-4 w-full flex flex-col items-center justify-center relative h-96 shadow-inner overflow-hidden">
+            <div className="relative w-48 h-64 flex justify-center items-end my-4">
 
-              <linearGradient id="flameInnerGrad" x1="22" y1="22" x2="22" y2="50" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#ffffff" />
-                <stop offset="100%" stopColor="#fde047" />
-              </linearGradient>
-            </defs>
+              {/* FLAMA */}
+              <div className="absolute top-2 z-30 flex items-center justify-center">
+                <svg width="44" height="64" viewBox="0 0 44 64" fill="none" className="drop-shadow-xs">
+                  <defs>
+                    <linearGradient id="flameOuterGrad" x1="22" y1="4" x2="22" y2="60" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#fef08a" />
+                      <stop offset="50%" stopColor="#f97316" />
+                      <stop offset="100%" stopColor="#ea580c" />
+                    </linearGradient>
 
-            <path
-              d="M 22 4 C 22 4, 38 30, 38 42 C 38 52 31 60 22 60 C 13 60 6 52 6 42 C 6 30, 22 4, 22 4 Z"
-              fill="url(#flameOuterGrad)"
-              stroke="#111111"
-              strokeWidth="3.5"
-              strokeLinejoin="round"
-            />
+                    <linearGradient id="flameInnerGrad" x1="22" y1="22" x2="22" y2="50" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="#ffffff" />
+                      <stop offset="100%" stopColor="#fde047" />
+                    </linearGradient>
+                  </defs>
 
-            <path
-              d="M 22 22 C 22 22, 30 35, 30 42 C 30 47 26 50 22 50 C 18 50 14 47 14 42 C 14 35, 22 22, 22 22 Z"
-              fill="url(#flameInnerGrad)"
-              stroke="#d97706"
-              strokeWidth="2"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
+                  <path
+                    d="M 22 4 C 22 4, 38 30, 38 42 C 38 52 31 60 22 60 C 13 60 6 52 6 42 C 6 30, 22 4, 22 4 Z"
+                    fill="url(#flameOuterGrad)"
+                    stroke="#111111"
+                    strokeWidth="3.5"
+                    strokeLinejoin="round"
+                  />
 
-        {/* CUERPO DE LA VELA */}
-        <div className="relative w-36 h-48 rounded-b-[2rem] rounded-t-lg flex flex-col items-center justify-end">
-          <div
-            className="absolute top-5 w-[92%] h-7 rounded-[50%] z-20 shadow-inner overflow-hidden border border-white/40 transition-colors duration-300"
-            style={{ backgroundColor: selectedColor.topWax }}
-          />
+                  <path
+                    d="M 22 22 C 22 22, 30 35, 30 42 C 30 47 26 50 22 50 C 18 50 14 47 14 42 C 14 35, 22 22, 22 22 Z"
+                    fill="url(#flameInnerGrad)"
+                    stroke="#d97706"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
 
-          <div
-            className={`w-full h-40 ${
-              isCustomColor ? '' : `bg-gradient-to-br ${selectedColor.bodyGradient}`
-            } rounded-b-[2rem] rounded-t-md shadow-md relative overflow-hidden transition-all duration-300 border border-white/60`}
-            style={{ backgroundColor: isCustomColor ? selectedColor.hex : undefined }}
-          >
-            <div className="absolute top-0 left-3 w-6 h-full bg-gradient-to-r from-white/40 via-white/10 to-transparent blur-[1px]" />
-          </div>
+              {/* CUERPO DE LA VELA */}
+              <div className="relative w-36 h-48 rounded-b-[2rem] rounded-t-lg flex flex-col items-center justify-end">
+                <div
+                  className="absolute top-5 w-[92%] h-7 rounded-[50%] z-20 shadow-inner overflow-hidden border border-white/40 transition-colors duration-300"
+                  style={{ backgroundColor: selectedColor.topWax }}
+                />
 
-          <div
-            className="absolute -bottom-2 w-32 h-4 rounded-full blur-md -z-10 transition-colors duration-300"
-            style={{ backgroundColor: selectedColor.shadowColor }}
-          />
-        </div>
-      </div>
-    </div>
-  </div>
+                <div
+                  className={`w-full h-40 ${
+                    isCustomColor ? '' : `bg-gradient-to-br ${selectedColor.bodyGradient}`
+                  } rounded-b-[2rem] rounded-t-md shadow-md relative overflow-hidden transition-all duration-300 border border-white/60`}
+                  style={{ backgroundColor: isCustomColor ? selectedColor.hex : undefined }}
+                >
+                  <div className="absolute top-0 left-3 w-6 h-full bg-gradient-to-r from-white/40 via-white/10 to-transparent blur-[1px]" />
+                </div>
 
-  {/* CONTROLES DE COLOR Y AROMA */}
-  <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs space-y-6">
-    {/* COLOR */}
-    <div>
-      <label className="block text-xs font-bold text-[#4a3531] uppercase tracking-wider font-[var(--font-cinzel)] mb-3">
-        1. Elige el color: <span className="normal-case text-[#a3685e] font-medium">({selectedColor.name})</span>
-      </label>
-
-      <div className="flex flex-wrap items-center gap-2.5">
-        {PRESET_COLORS.map((color) => (
-          <button
-            key={color.name}
-            type="button"
-            onClick={() => {
-              setIsCustomColor(false);
-              setSelectedColor(color);
-            }}
-            style={{ backgroundColor: color.hex }}
-            className={`w-8 h-8 rounded-full border transition-all transform active:scale-90 ${
-              !isCustomColor && selectedColor.name === color.name
-                ? 'border-[#8c5349] scale-110 shadow-sm ring-2 ring-[#a3685e]/30'
-                : 'border-black/10 shadow-2xs hover:scale-105'
-            }`}
-          />
-        ))}
-
-        {/* COLOR PERSONALIZADO */}
-        <div className="relative group">
-          <input
-            type="color"
-            value={selectedColor.hex}
-            onChange={(e) => {
-              setIsCustomColor(true);
-              setSelectedColor(createCustomColorState(e.target.value));
-            }}
-            className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer z-20"
-          />
-
-          <div
-            className={`w-8 h-8 rounded-full border-2 border-dashed flex items-center justify-center transition-all ${
-              isCustomColor ? 'border-[#8c5349] bg-white' : 'border-[#a3685e]/50 bg-white/50'
-            }`}
-          >
-            <span className="text-xs">🎨</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* AROMA */}
-    <div>
-      <label className="block text-xs font-bold text-[#4a3531] uppercase tracking-wider font-[var(--font-cinzel)] mb-2">
-        2. Selecciona la esencia / aroma:
-      </label>
-
-      <select
-        value={selectedAroma}
-        onChange={(e) => setSelectedAroma(e.target.value)}
-        className="w-full text-xs p-3 rounded-xl bg-white border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/30 shadow-2xs cursor-pointer transition-all"
-      >
-        {aromasList.map((a) => (
-          <option key={a.id} value={a.name}>
-            {a.name}
-          </option>
-        ))}
-      </select>
-    </div>
-  </div>
-</div>
-// Bloque 7/10
-<div className="space-y-3 pt-2">
-  <div className="flex items-center gap-3">
-    {/* CONTROL DE CANTIDAD */}
-    <div className="flex items-center border border-[#e2d0cb] rounded-xl bg-white overflow-hidden shadow-2xs">
-      <button
-        type="button"
-        onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-        className="px-3 py-2 text-xs font-bold text-[#4a3531] hover:bg-[#fcf5f3] transition-colors"
-      >
-        -
-      </button>
-
-      <span className="px-3 py-2 text-xs font-bold min-w-[32px] text-center text-[#4a3531]">
-        {quantity}
-      </span>
-
-      <button
-        type="button"
-        onClick={() => setQuantity((prev) => prev + 1)}
-        className="px-3 py-2 text-xs font-bold text-[#4a3531] hover:bg-[#fcf5f3] transition-colors"
-      >
-        +
-      </button>
-    </div>
-
-    {/* GUARDAR CONFIGURACIÓN */}
-    <button
-      type="button"
-      onClick={handleSaveConfiguration}
-      className="flex-1 bg-[#F5EEF8] hover:bg-[#EAE0F2] text-[#4A3531] border-2 border-[#9E6B65] hover:border-[#865651] text-xs font-bold py-3 px-4 rounded-full font-[var(--font-cinzel)] tracking-wider transition-all duration-200 shadow-xs hover:shadow-md active:scale-[0.98]"
-    >
-      + Guardar esta configuración
-    </button>
-  </div>
-</div>
-
-{/* MENSAJE DE GUARDADO */}
-{savedMessage && (
-  <p className="text-center text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl font-medium animate-in fade-in">
-    ✓ Configuración guardada correctamente en tu lista.
-  </p>
-)}
-
-{/* LISTA DE CONFIGURACIONES */}
-{customizations.length > 0 && (
-  <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs space-y-5">
-    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-      <h3 className="font-[var(--font-cinzel)] text-sm font-bold text-[#4a3531] uppercase tracking-wider">
-        CONFIGURACIONES DE TUS FAVORITOS ({customizations.length}):
-      </h3>
-
-      <button
-        onClick={handleClearAll}
-        className="text-xs bg-[#F5EEF8] hover:bg-[#EAE0F2] text-[#4A3531] border-2 border-[#9E6B65] hover:border-[#865651] px-4 py-2 rounded-full font-[var(--font-cinzel)] font-bold tracking-wider transition-all duration-200 shadow-xs hover:shadow-md active:scale-[0.98]"
-      >
-        ( - ) Borrar todo y limpiar lista
-      </button>
-    </div>
-
-    <div className="bg-[#FAF5F7]/90 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-[#E8DCE2] shadow-xs space-y-6 font-[var(--font-montserrat)] text-[#4a3531]">
-      <div className="flex items-center justify-between border-b border-[#E8DCE2]/80 pb-4">
-        <div className="flex items-center gap-2">
-          <span className="text-base">✨</span>
-          <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider text-[#4a3531] font-[var(--font-cinzel)]">
-            Mi pedido
-          </h3>
-        </div>
-      </div>
-
-      {/* TABLA */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-center text-xs border-collapse min-w-[600px]">
-          <thead>
-            <tr className="border-b border-[#E8DCE2] text-[#8c5349] uppercase font-[var(--font-cinzel)] tracking-wider">
-              <th className="py-2.5 px-3 font-bold text-left">Artículo</th>
-              <th className="py-2.5 px-3 font-bold">Color</th>
-              <th className="py-2.5 px-3 font-bold">Aroma</th>
-              <th className="py-2.5 px-3 font-bold">Precio Unidad</th>
-              <th className="py-2.5 px-3 font-bold text-center">Cantidad</th>
-              <th className="py-2.5 px-3 font-bold text-right">Subtotal</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-[#E8DCE2]/50">
-            {customizations.map((item) => (
-              <tr key={item.id} className="hover:bg-white/60 transition-colors">
-                <td className="py-3 px-3 font-bold text-[#4a3531] text-left">
-                  {item.productName}
-                </td>
-
-                <td className="py-3 px-3 font-medium text-[#5c423d]">
-                  {item.color}
-                </td>
-
-                <td className="py-3 px-3 font-medium text-[#5c423d]">
-                  {item.aroma}
-                </td>
-
-                <td className="py-3 px-3 font-semibold text-[#4a3531]">
-                  ${item.unitPrice.toFixed(2)}
-                </td>
-
-                <td className="py-3 px-3 text-center">
-                  <div className="inline-flex items-center bg-white border border-[#E8DCE2] rounded-lg px-2 py-1 gap-2 font-bold text-[#4a3531] shadow-2xs">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateItemQuantity(item.id, -1)}
-                      className="hover:text-[#a3685e] transition-colors"
-                    >
-                      -
-                    </button>
-
-                    <span>{item.quantity} pz</span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateItemQuantity(item.id, 1)}
-                      className="hover:text-[#a3685e] transition-colors"
-                    >
-                      +
-                    </button>
-                  </div>
-                </td>
-
-                <td className="py-3 px-3 font-bold text-[#8c5349] font-[var(--font-cinzel)] text-right">
-                  <div className="flex items-center justify-end gap-3">
-                    <span>${item.total.toFixed(2)} MXN</span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateItemQuantity(item.id, -item.quantity)}
-                      className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full transition-all shadow-2xs cursor-pointer active:scale-95 font-[var(--font-montserrat)]"
-                    >
-                      Elimina
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-)}
-// Bloque 8/10
-{/* SECCIÓN INFERIOR CON FRASE Y TOTAL */}
-<div className="pt-4 border-t border-[#E8DCE2]">
-  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-    {/* FRASE */}
-    <p
-      className="text-xs italic text-[#705651] font-medium md:max-w-[50%] leading-relaxed"
-      style={{ textAlign: 'justify' }}
-    >
-      * Hecho a mano, con amor, solo para ti. Elegiste cada color y aroma con mucho cariño.
-      Ahora nos toca a nosotros crearlas. En E-Aura cada vela es artesanal y única, elaborada
-      una por una. Por ser artesanales, el tono puede variar ligeramente, lo que hace a tu pieza
-      aún más especial. Gracias por confiar tu celebración en nosotros.
-    </p>
-
-    {/* TOTAL */}
-    <div className="flex flex-col items-end gap-3 w-full md:w-auto">
-      <div className="bg-white/90 border border-[#E8DCE2] px-5 py-2.5 rounded-xl shadow-2xs text-right w-full sm:w-auto min-w-[240px]">
-        <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8c5349] font-[var(--font-cinzel)]">
-          Total Acumulado ({totalPiecesCount} pzas)
-        </span>
-
-        <span className="text-xl md:text-2xl font-bold text-[#4a3531] tracking-tight font-[var(--font-cinzel)]">
-          ${totalAmountSum.toFixed(2)} <span className="text-xs font-semibold text-[#8c5349]">MXN</span>
-        </span>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setIsModalOpen(true)}
-        className="w-full sm:w-auto bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#20bd5a] hover:to-[#0e7569] text-white text-xs font-bold py-2.5 px-5 rounded-xl font-[var(--font-cinzel)] tracking-wider transition-all shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
-      >
-        <span>💬</span> Confirmar y Enviar Pedido por WhatsApp
-      </button>
-    </div>
-  </div>
-</div>
-// Bloque 9/10
-{/* MODAL DE DATOS DEL CLIENTE */}
-{isModalOpen && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-    <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full border border-[#e8d5d1] shadow-2xl space-y-5 relative animate-in fade-in zoom-in-95">
-      <button
-        onClick={() => setIsModalOpen(false)}
-        className="absolute top-4 right-4 text-[#8c5349] hover:text-[#4a3531] font-bold text-sm p-1"
-      >
-        ✕
-      </button>
-
-      <div className="text-center space-y-1">
-        <span className="text-2xl">🕯️</span>
-        <h3 className="font-[var(--font-cinzel)] text-lg font-bold text-[#4a3531]">
-          Datos de Contacto
-        </h3>
-        <p className="text-xs text-[#705651]">
-          Por favor ingresa tus datos para personalizar el envío de tu pedido.
-        </p>
-      </div>
-
-      <form onSubmit={handleSendWhatsApp} className="space-y-4 text-xs font-[var(--font-montserrat)]">
-        <div>
-          <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
-            Nombre Completo *
-          </label>
-          <input
-            type="text"
-            required
-            placeholder="Ej. María González"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-            className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
-            Teléfono / WhatsApp *
-          </label>
-          <input
-            type="tel"
-            required
-            placeholder="Ej. 55 1234 5678"
-            value={customerPhone}
-            onChange={(e) => setCustomerPhone(e.target.value)}
-            className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
-          />
-        </div>
-
-        <div>
-          <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
-            Correo Electrónico (Opcional)
-          </label>
-          <input
-            type="email"
-            placeholder="ejemplo@correo.com"
-            value={customerEmail}
-            onChange={(e) => setCustomerEmail(e.target.value)}
-            className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
-          />
-        </div>
-
-        <div className="pt-2 space-y-2">
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-bold py-3 px-4 rounded-xl font-[var(--font-cinzel)] tracking-wider transition-all shadow-md hover:shadow-lg active:scale-[0.98] text-xs"
-          >
-            Enviar Cotización a WhatsApp
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="w-full bg-white text-[#8c5349] border border-[#e2d0cb] hover:bg-[#FAF5F7] font-bold py-2.5 px-4 rounded-xl font-[var(--font-cinzel)] transition-all text-xs"
-          >
-            🖨️ Imprimir / Guardar Nota en PDF
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-)}
-// Bloque 10/10
-{/* PLANTILLA DE IMPRESIÓN */}
-<div className="hidden print:block font-[var(--font-montserrat)] text-[#4a3531] p-8 max-w-4xl mx-auto relative min-h-screen">
-  <div
-    className="absolute inset-0 opacity-15 pointer-events-none bg-repeat -z-10"
-    style={{ backgroundImage: "url('/bg-texture.png')" }}
-  />
-
-  {/* ENCABEZADO */}
-  <div className="border-b-2 border-[#8c5349] pb-4 mb-6 flex justify-between items-end">
-    <div>
-      <h1 className="font-[var(--font-cinzel)] text-2xl font-bold text-[#8c5349]">E-AURA</h1>
-      <p className="text-xs uppercase tracking-widest text-[#705651]">Velas Artesanales & Recuerdos</p>
-    </div>
-
-    <div className="text-right text-xs">
-      <p className="font-bold font-[var(--font-cinzel)]">NOTA DE PEDIDO</p>
-      <p className="text-[#705651]">{new Date().toLocaleDateString('es-MX')}</p>
-    </div>
-  </div>
-
-  {/* DATOS DEL CLIENTE */}
-  <div className="bg-[#FAF5F7] p-4 rounded-xl border border-[#e2d0cb] mb-6 text-xs space-y-1">
-    <p className="font-bold font-[var(--font-cinzel)] text-[#8c5349] uppercase tracking-wider mb-2">
-      DATOS DEL CLIENTE
-    </p>
-
-    <p><strong>Nombre:</strong> {customerName || 'No especificado'}</p>
-    <p><strong>Teléfono:</strong> {customerPhone || 'No especificado'}</p>
-    {customerEmail && <p><strong>Correo Electrónico:</strong> {customerEmail}</p>}
-  </div>
-
-  {/* TABLA DE PRODUCTOS */}
-  <div className="mb-6">
-    <h2 className="font-[var(--font-cinzel)] text-sm font-bold text-[#8c5349] uppercase tracking-wider mb-3">
-      DETALLE DE PRODUCTOS SELECCIONADOS
-    </h2>
-
-    <table className="w-full text-left text-xs border-collapse">
-      <thead>
-        <tr className="border-b-2 border-[#8c5349] text-[#8c5349] font-[var(--font-cinzel)] uppercase">
-          <th className="py-2 px-2">Imagen</th>
-          <th className="py-2 px-2">Producto</th>
-          <th className="py-2 px-2">Color</th>
-          <th className="py-2 px-2">Aroma</th>
-          <th className="py-2 px-2 text-center">Cant.</th>
-          <th className="py-2 px-2 text-right">Precio Unid.</th>
-          <th className="py-2 px-2 text-right">Subtotal</th>
-        </tr>
-      </thead>
-
-      <tbody className="divide-y divide-[#e2d0cb]">
-        {customizations.map((item) => (
-          <tr key={item.id} className="align-middle">
-            <td className="py-3 px-2">
-              <div className="w-18 h-18 relative border border-[#e2d0cb] rounded-lg overflow-hidden bg-white shadow-xs">
-                <Image
-                  src={item.maskImageUrl || item.imageUrl}
-                  alt={item.productName}
-                  fill
-                  className="object-cover"
-                  unoptimized
+                <div
+                  className="absolute -bottom-2 w-32 h-4 rounded-full blur-md -z-10 transition-colors duration-300"
+                  style={{ backgroundColor: selectedColor.shadowColor }}
                 />
               </div>
-            </td>
+            </div>
+          </div>
+        </div>
 
-            <td className="py-3 px-2 font-bold">{item.productName}</td>
-            <td className="py-3 px-2">{item.color}</td>
-            <td className="py-3 px-2">{item.aroma}</td>
-            <td className="py-3 px-2 text-center font-bold">{item.quantity}</td>
-            <td className="py-3 px-2 text-right">${item.unitPrice.toFixed(2)}</td>
-            <td className="py-3 px-2 text-right font-bold">${item.total.toFixed(2)} MXN</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
+        {/* CONTROLES DE COLOR Y AROMA */}
+        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs space-y-6">
 
-  {/* TOTAL */}
-  <div className="flex justify-end pt-4 border-t-2 border-[#8c5349]">
-    <div className="text-right text-xs">
-      <p className="font-bold font-[var(--font-cinzel)] text-[#8c5349] uppercase">
-        TOTAL DE PIEZAS: {totalPiecesCount}
-      </p>
+          {/* COLOR */}
+          <div>
+            <label className="block text-xs font-bold text-[#4a3531] uppercase tracking-wider font-[var(--font-cinzel)] mb-3">
+              1. Elige el color: <span className="normal-case text-[#a3685e] font-medium">({selectedColor.name})</span>
+            </label>
 
-      <p className="text-base font-bold font-[var(--font-cinzel)] text-[#4a3531]">
-        TOTAL ACUMULADO: ${totalAmountSum.toFixed(2)} MXN
-      </p>
+            <div className="flex flex-wrap items-center gap-2.5">
+              {PRESET_COLORS.map((color) => (
+                <button
+                  key={color.name}
+                  type="button"
+                  onClick={() => {
+                    setIsCustomColor(false);
+                    setSelectedColor(color);
+                  }}
+                  style={{ backgroundColor: color.hex }}
+                  className={`w-8 h-8 rounded-full border transition-all transform active:scale-90 ${
+                    !isCustomColor && selectedColor.name === color.name
+                      ? 'border-[#8c5349] scale-110 shadow-sm ring-2 ring-[#a3685e]/30'
+                      : 'border-black/10 shadow-2xs hover:scale-105'
+                  }`}
+                />
+              ))}
+
+              {/* COLOR PERSONALIZADO */}
+              <div className="relative group">
+                <input
+                  type="color"
+                  value={selectedColor.hex}
+                  onChange={(e) => {
+                    setIsCustomColor(true);
+                    setSelectedColor(createCustomColorState(e.target.value));
+                  }}
+                  className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer z-20"
+                />
+
+                <div
+                  className={`w-8 h-8 rounded-full border-2 border-dashed flex items-center justify-center transition-all ${
+                    isCustomColor ? 'border-[#8c5349] bg-white' : 'border-[#a3685e]/50 bg-white/50'
+                  }`}
+                >
+                  <span className="text-xs">🎨</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* AROMA */}
+          <div>
+            <label className="block text-xs font-bold text-[#4a3531] uppercase tracking-wider font-[var(--font-cinzel)] mb-2">
+              2. Selecciona la esencia / aroma:
+            </label>
+
+            <select
+              value={selectedAroma}
+              onChange={(e) => setSelectedAroma(e.target.value)}
+              className="w-full text-xs p-3 rounded-xl bg-white border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/30 shadow-2xs cursor-pointer transition-all"
+            >
+              {aromasList.map((a) => (
+                <option key={a.id} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+      {/* CONTROL DE CANTIDAD + GUARDAR */}
+      <div className="space-y-3 pt-2">
+        <div className="flex items-center gap-3">
+          {/* CONTROL DE CANTIDAD */}
+          <div className="flex items-center border border-[#e2d0cb] rounded-xl bg-white overflow-hidden shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+              className="px-3 py-2 text-xs font-bold text-[#4a3531] hover:bg-[#fcf5f3] transition-colors"
+            >
+              -
+            </button>
+
+            <span className="px-3 py-2 text-xs font-bold min-w-[32px] text-center text-[#4a3531]">
+              {quantity}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setQuantity((prev) => prev + 1)}
+              className="px-3 py-2 text-xs font-bold text-[#4a3531] hover:bg-[#fcf5f3] transition-colors"
+            >
+              +
+            </button>
+          </div>
+
+          {/* GUARDAR CONFIGURACIÓN */}
+          <button
+            type="button"
+            onClick={handleSaveConfiguration}
+            className="flex-1 bg-[#F5EEF8] hover:bg-[#EAE0F2] text-[#4A3531] border-2 border-[#9E6B65] hover:border-[#865651] text-xs font-bold py-3 px-4 rounded-full font-[var(--font-cinzel)] tracking-wider transition-all duration-200 shadow-xs hover:shadow-md active:scale-[0.98]"
+          >
+            + Guardar esta configuración
+          </button>
+        </div>
+      </div>
+
+      {/* MENSAJE DE GUARDADO */}
+      {savedMessage && (
+        <p className="text-center text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl font-medium animate-in fade-in">
+          ✓ Configuración guardada correctamente en tu lista.
+        </p>
+      )}
+
+      {/* LISTA DE CONFIGURACIONES */}
+      {customizations.length > 0 && (
+        <div className="bg-white/70 backdrop-blur-md rounded-2xl p-6 border border-[#f0e4e1] shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <h3 className="font-[var(--font-cinzel)] text-sm font-bold text-[#4a3531] uppercase tracking-wider">
+              CONFIGURACIONES DE TUS FAVORITOS ({customizations.length}):
+            </h3>
+
+            <button
+              onClick={handleClearAll}
+              className="text-xs bg-[#F5EEF8] hover:bg-[#EAE0F2] text-[#4A3531] border-2 border-[#9E6B65] hover:border-[#865651] px-4 py-2 rounded-full font-[var(--font-cinzel)] font-bold tracking-wider transition-all duration-200 shadow-xs hover:shadow-md active:scale-[0.98]"
+            >
+              ( - ) Borrar todo y limpiar lista
+            </button>
+          </div>
+
+          <div className="bg-[#FAF5F7]/90 backdrop-blur-md rounded-3xl p-6 md:p-8 border border-[#E8DCE2] shadow-xs space-y-6 font-[var(--font-montserrat)] text-[#4a3531]">
+            <div className="flex items-center justify-between border-b border-[#E8DCE2]/80 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-base">✨</span>
+                <h3 className="text-xs md:text-sm font-bold uppercase tracking-wider text-[#4a3531] font-[var(--font-cinzel)]">
+                  Mi pedido
+                </h3>
+              </div>
+            </div>
+
+            {/* TABLA */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-center text-xs border-collapse min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-[#E8DCE2] text-[#8c5349] uppercase font-[var(--font-cinzel)] tracking-wider">
+                    <th className="py-2.5 px-3 font-bold text-left">Artículo</th>
+                    <th className="py-2.5 px-3 font-bold">Color</th>
+                    <th className="py-2.5 px-3 font-bold">Aroma</th>
+                    <th className="py-2.5 px-3 font-bold">Precio Unidad</th>
+                    <th className="py-2.5 px-3 font-bold text-center">Cantidad</th>
+                    <th className="py-2.5 px-3 font-bold text-right">Subtotal</th>
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-[#E8DCE2]/50">
+                  {customizations.map((item) => (
+                    <tr key={item.id} className="hover:bg-white/60 transition-colors">
+                      <td className="py-3 px-3 font-bold text-[#4a3531] text-left">
+                        {item.productName}
+                      </td>
+
+                      <td className="py-3 px-3 font-medium text-[#5c423d]">
+                        {item.color}
+                      </td>
+
+                      <td className="py-3 px-3 font-medium text-[#5c423d]">
+                        {item.aroma}
+                      </td>
+
+                      <td className="py-3 px-3 font-semibold text-[#4a3531]">
+                        ${item.unitPrice.toFixed(2)}
+                      </td>
+
+                      <td className="py-3 px-3 text-center">
+                        <div className="inline-flex items-center bg-white border border-[#E8DCE2] rounded-lg px-2 py-1 gap-2 font-bold text-[#4a3531] shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateItemQuantity(item.id, -1)}
+                            className="hover:text-[#a3685e] transition-colors"
+                          >
+                            -
+                          </button>
+
+                          <span>{item.quantity} pz</span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateItemQuantity(item.id, 1)}
+                            className="hover:text-[#a3685e] transition-colors"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-3 font-bold text-[#8c5349] font-[var(--font-cinzel)] text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <span>${item.total.toFixed(2)} MXN</span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateItemQuantity(item.id, -item.quantity)}
+                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 text-[10px] font-bold px-2 py-0.5 rounded-full transition-all shadow-2xs cursor-pointer active:scale-95 font-[var(--font-montserrat)]"
+                          >
+                            Elimina
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* SECCIÓN INFERIOR CON FRASE Y TOTAL */}
+      <div className="pt-4 border-t border-[#E8DCE2]">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+
+          {/* FRASE */}
+          <p
+            className="text-xs italic text-[#705651] font-medium md:max-w-[50%] leading-relaxed"
+            style={{ textAlign: 'justify' }}
+          >
+            * Hecho a mano, con amor, solo para ti. Elegiste cada color y aroma con mucho cariño.
+            Ahora nos toca a nosotros crearlas. En E-Aura cada vela es artesanal y única, elaborada
+            una por una. Por ser artesanales, el tono puede variar ligeramente, lo que hace a tu pieza
+            aún más especial. Gracias por confiar tu celebración en nosotros.
+          </p>
+
+          {/* TOTAL */}
+          <div className="flex flex-col items-end gap-3 w-full md:w-auto">
+            <div className="bg-white/90 border border-[#E8DCE2] px-5 py-2.5 rounded-xl shadow-2xs text-right w-full sm:w-auto min-w-[240px]">
+              <span className="block text-[10px] font-bold uppercase tracking-wider text-[#8c5349] font-[var(--font-cinzel)]">
+                Total Acumulado ({totalPiecesCount} pzas)
+              </span>
+
+              <span className="text-xl md:text-2xl font-bold text-[#4a3531] tracking-tight font-[var(--font-cinzel)]">
+                ${totalAmountSum.toFixed(2)} <span className="text-xs font-semibold text-[#8c5349]">MXN</span>
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="w-full sm:w-auto bg-gradient-to-r from-[#25D366] to-[#128C7E] hover:from-[#20bd5a] hover:to-[#0e7569] text-white text-xs font-bold py-2.5 px-5 rounded-xl font-[var(--font-cinzel)] tracking-wider transition-all shadow-sm hover:shadow-md active:scale-[0.98] flex items-center justify-center gap-2"
+            >
+              <span>💬</span> Confirmar y Enviar Pedido por WhatsApp
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* MODAL DE DATOS DEL CLIENTE */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full border border-[#e8d5d1] shadow-2xl space-y-5 relative animate-in fade-in zoom-in-95">
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 text-[#8c5349] hover:text-[#4a3531] font-bold text-sm p-1"
+            >
+              ✕
+            </button>
+
+            <div className="text-center space-y-1">
+              <span className="text-2xl">🕯️</span>
+              <h3 className="font-[var(--font-cinzel)] text-lg font-bold text-[#4a3531]">
+                Datos de Contacto
+              </h3>
+              <p className="text-xs text-[#705651]">
+                Por favor ingresa tus datos para personalizar el envío de tu pedido.
+              </p>
+            </div>
+
+            <form onSubmit={handleSendWhatsApp} className="space-y-4 text-xs font-[var(--font-montserrat)]">
+              <div>
+                <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
+                  Nombre Completo *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. María González"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
+                  Teléfono / WhatsApp *
+                </label>
+                <input
+                  type="tel"
+                  required
+                  placeholder="Ej. 55 1234 5678"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-[#4a3531] uppercase tracking-wider mb-1">
+                  Correo Electrónico (Opcional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="ejemplo@correo.com"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  className="w-full p-3 rounded-xl bg-[#FAF5F7] border border-[#e2d0cb] text-[#4a3531] focus:outline-none focus:ring-2 focus:ring-[#a3685e]/40"
+                />
+              </div>
+
+              <div className="pt-2 space-y-2">
+                <button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-[#25D366] to-[#128C7E] text-white font-bold py-3 px-4 rounded-xl font-[var(--font-cinzel)] tracking-wider transition-all shadow-md hover:shadow-lg active:scale-[0.98] text-xs"
+                >
+                  Enviar Cotización a WhatsApp
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className="w-full bg-white text-[#8c5349] border border-[#e2d0cb] hover:bg-[#FAF5F7] font-bold py-2.5 px-4 rounded-xl font-[var(--font-cinzel)] transition-all text-xs"
+                >
+                  🖨️ Imprimir / Guardar Nota en PDF
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* PLANTILLA DE IMPRESIÓN */}
+      <div className="hidden print:block font-[var(--font-montserrat)] text-[#4a3531] p-8 max-w-4xl mx-auto relative min-h-screen">
+        <div
+          className="absolute inset-0 opacity-15 pointer-events-none bg-repeat -z-10"
+          style={{ backgroundImage: "url('/bg-texture.png')" }}
+        />
+
+        {/* ENCABEZADO */}
+        <div className="border-b-2 border-[#8c5349] pb-4 mb-6 flex justify-between items-end">
+          <div>
+            <h1 className="font-[var(--font-cinzel)] text-2xl font-bold text-[#8c5349]">E-AURA</h1>
+            <p className="text-xs uppercase tracking-widest text-[#705651]">Velas Artesanales & Recuerdos</p>
+          </div>
+
+          <div className="text-right text-xs">
+            <p className="font-bold font-[var(--font-cinzel)]">NOTA DE PEDIDO</p>
+            <p className="text-[#705651]">{new Date().toLocaleDateString('es-MX')}</p>
+          </div>
+        </div>
+
+        {/* DATOS DEL CLIENTE */}
+        <div className="bg-[#FAF5F7] p-4 rounded-xl border border-[#e2d0cb] mb-6 text-xs space-y-1">
+          <p className="font-bold font-[var(--font-cinzel)] text-[#8c5349] uppercase tracking-wider mb-2">
+            DATOS DEL CLIENTE
+          </p>
+
+          <p><strong>Nombre:</strong> {customerName || 'No especificado'}</p>
+          <p><strong>Teléfono:</strong> {customerPhone || 'No especificado'}</p>
+          {customerEmail && <p><strong>Correo Electrónico:</strong> {customerEmail}</p>}
+        </div>
+
+        {/* TABLA DE PRODUCTOS */}
+        <div className="mb-6">
+          <h2 className="font-[var(--font-cinzel)] text-sm font-bold text-[#8c5349] uppercase tracking-wider mb-3">
+            DETALLE DE PRODUCTOS SELECCIONADOS
+          </h2>
+
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b-2 border-[#8c5349] text-[#8c5349] font-[var(--font-cinzel)] uppercase">
+                <th className="py-2 px-2">Imagen</th>
+                <th className="py-2 px-2">Producto</th>
+                <th className="py-2 px-2">Color</th>
+                <th className="py-2 px-2">Aroma</th>
+                <th className="py-2 px-2 text-center">Cant.</th>
+                <th className="py-2 px-2 text-right">Precio Unid.</th>
+                <th className="py-2 px-2 text-right">Subtotal</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-[#e2d0cb]">
+              {customizations.map((item) => (
+                <tr key={item.id} className="align-middle">
+                  <td className="py-3 px-2">
+                    <div className="w-18 h-18 relative border border-[#e2d0cb] rounded-lg overflow-hidden bg-white shadow-xs">
+                      <Image
+                        src={item.maskImageUrl || item.imageUrl}
+                        alt={item.productName}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  </td>
+
+                  <td className="py-3 px-2 font-bold">{item.productName}</td>
+                  <td className="py-3 px-2">{item.color}</td>
+                  <td className="py-3 px-2">{item.aroma}</td>
+                  <td className="py-3 px-2 text-center font-bold">{item.quantity}</td>
+                  <td className="py-3 px-2 text-right">${item.unitPrice.toFixed(2)}</td>
+                  <td className="py-3 px-2 text-right font-bold">${item.total.toFixed(2)} MXN</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* TOTAL */}
+        <div className="flex justify-end pt-4 border-t-2 border-[#8c5349]">
+          <div className="text-right text-xs">
+            <p className="font-bold font-[var(--font-cinzel)] text-[#8c5349] uppercase">
+              TOTAL DE PIEZAS: {totalPiecesCount}
+            </p>
+
+            <p className="text-base font-bold font-[var(--font-cinzel)] text-[#4a3531]">
+              TOTAL ACUMULADO: ${totalAmountSum.toFixed(2)} MXN
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-12 text-center text-[10px] text-[#705651] italic border-t border-[#e2d0cb] pt-4">
+          <p>* Esta nota refleja la cotización de elaboración artesanal configurada en el sitio web de E-Aura.</p>
+        </div>
+      </div>
+//atención aquí
     </div>
-  </div>
+  );
+}
 
-  <div className="mt-12 text-center text-[10px] text-[#705651] italic border-t border-[#e2d0cb] pt-4">
-    <p>* Esta nota refleja la cotización de elaboración artesanal configurada en el sitio web de E-Aura.</p>
-  </div>
-</div>
-
-{/* EXPORT DEL COMPONENTE */}
+/* EXPORT DEL COMPONENTE */
 export default function CustomizerPage() {
   return (
     <main
@@ -940,5 +938,3 @@ export default function CustomizerPage() {
     </main>
   );
 }
-
-
